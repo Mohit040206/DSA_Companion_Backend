@@ -141,3 +141,16 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+.env.local
+
+
+
+# OS specific files
+.DS_Store

@@ -127,7 +127,10 @@ const attemptSchema = new mongoose.Schema(
         notes: {
             type: String,
             trim: true
-        }
+        },
+        completedAt: {
+    type: Date
+},
     },
     {
         timestamps: true

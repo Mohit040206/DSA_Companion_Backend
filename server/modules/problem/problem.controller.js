@@ -67,7 +67,7 @@ const listProblem = async (req, res) => {
 const getProblemById = async (req, res) => {
     try {
         const { id } = req.params;
-        const problem = await problemService.getProblemById(id);
+        const problem = await ProblemService.getProblemById(id);
 
         return res.status(200).json({
             success: true,
@@ -76,6 +76,7 @@ const getProblemById = async (req, res) => {
             data: problem
         });
     } catch (err) {
+        console.error(err.message)
         const statusCode = err.statusCode || 500;
         return res.status(statusCode).json({
             success: false,
