@@ -13,12 +13,19 @@ const createAttempt=async(problemId,userId)=>{
         error.statusCode=404;
         throw error;
         }
-        const isPresent=await Attempt.findOne({problemId,userId,"sessions.endedAt":{$exists:false}})
-        if(isPresent){
-            const error=new Error("A attempt already exist completed that one to create a new with the same question.")
-           error.statusCode=409
-            throw error
-        }
+       const isPresent = await Attempt.findOne({
+    userId,
+    completedAt: { $exists: false }
+});
+
+if (isPresent) {
+    const error = new Error(
+        "You already have an unfinished attempt. Complete it before starting another."
+    );
+
+    error.statusCode = 409;
+    throw error;
+}
     const attempt=await Attempt.create(
        { 
         problemId,
@@ -70,6 +77,11 @@ const endAttemptSession=async(userId,attemptId)=>{
         error.statusCode=404;
         throw error;
     }
+       if (attempt.completedAt) {
+        const error = new Error("Attempt already submitted.");
+        error.statusCode = 409;
+        throw error;
+    }
     
  const activeSession = attempt.sessions.find(session => !session.endedAt);
 
@@ -85,24 +97,54 @@ const endAttemptSession=async(userId,attemptId)=>{
 }
 
 
-const submitAttempt=async(userId,attemptId)=>{
+const submitAttempt=async(userId,attemptId,data)=>{
     const attempt=await Attempt.findOne({_id:attemptId,userId})
 
     if(!attempt){
-        const error=new Error("No attempt found to submit.")
+        const error=new Error("Attempt not found.")
         error.statusCode=404
         throw error;
     }
     if(attempt.completedAt!=null){
-        const error=new Error("Attempt already submitted ")
+        const error=new Error("Attempt already submitted.")
         error.statusCode=409
         throw error
     }
-     const isActiveSessions=await Attempt.findOne({_id:attemptId,sessions: { $elemMatch: { endedAt: { $exists: false } } }})
-     if(isActiveSessions){
-        activeSession.endedAt = new Date();
-     }
+    const activeSession = attempt.sessions.find(
+    session => !session.endedAt
+);
+
+if (activeSession) {
+    activeSession.endedAt = new Date();
+}
      
+    //  Attempt data
+    attempt.outcome=data.outcome;
+    attempt.hintsUsed=data.hintsUsed??0;
+    attempt.confidence=data.confidence;
+    attempt.approach=data.approach;
+    attempt.algorithm=data.algorithm;
+    attempt.keyInsight=data.keyInsight;
+    attempt.mistakes=data.mistakes;
+    attempt.complexity={
+        time:data.complexity?.time,
+        space:data.complexity?.space
+    }
+    attempt.language = data.language;
+
+    attempt.reflection = data.reflection;
+    attempt.reflectionNote = data.reflectionNote;
+
+    attempt.notes = data.notes;
+
+  
+    attempt.completedAt = new Date();
+
+    await attempt.save();
+
+    return attempt;
 
 }
-module.exports={createAttempt,resumeAttempt,endAttemptSession}
+module.exports={createAttempt,resumeAttempt,endAttemptSession,submitAttempt}
+
+

@@ -7,7 +7,7 @@ const router=express.Router()
 router.post("/start",authMiddleware,authorize(["user","admin"]),startAttempt)
 router.post("/session/:attemptId/resume",authMiddleware,authorize(["user","admin"]),resumeAttempt)
 router.post("/session/:attemptId/end",authMiddleware,authorize(["user","admin"]),endAttemptSession)
-router.post("/submit",authMiddleware,authorize(["admin","user"]),submitAttempt)
+router.post("/:attemptId/submit",authMiddleware,authorize(["admin","user"]),submitAttempt)
 
 
 module.exports=router

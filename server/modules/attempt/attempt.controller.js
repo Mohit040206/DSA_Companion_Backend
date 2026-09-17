@@ -96,7 +96,65 @@ const endAttemptSession=async(req,res)=>{
 const submitAttempt=async(req,res)=>{
 try{
     const userId=req.userId;
-    const {attemptId}=req.body;
+    const {attemptId}=req.params;
+
+    if(!attemptId){
+        return res.status(400).json({
+            success:false,
+            message:"Attempt is required to submit.",
+            code:400
+        })
+    }
+
+        const {
+            outcome,
+            hintsUsed,
+            confidence,
+            approach,
+            algorithm,
+            keyInsight,
+            mistakes,
+            complexity,
+            language,
+            reflection,
+            reflectionNote,
+            notes
+        } = req.body;
+
+        if(!outcome){
+            return res.status(400).json({
+                success:false,
+                message:"Outcome is required.",
+                code:400
+            })
+        }
+        if(confidence===undefined || confidence === null){
+            return res.status(400).json({
+                success:false,
+                message:"Confidence is required.",
+                code:400
+            })
+        }
+        const attempt=await attemptService.submitAttempt(userId,attemptId,{
+              outcome,
+            hintsUsed,
+            confidence,
+            approach,
+            algorithm,
+            keyInsight,
+            mistakes,
+            complexity,
+            language,
+            reflection,
+            reflectionNote,
+            notes
+        })
+        return res.status(200).json({
+            success:true,
+            message:"Attempt submitted successfully.",
+            code:200,
+            data:attempt
+        })
 
 }catch(err){
     console.error(err.message)
