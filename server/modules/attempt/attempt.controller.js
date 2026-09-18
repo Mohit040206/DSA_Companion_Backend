@@ -167,4 +167,59 @@ try{
 }
 }
 
-module.exports={startAttempt,resumeAttempt,endAttemptSession,submitAttempt}
+
+const getAttemptById=async(req,res)=>{
+  try{
+      const userId=req.userId;
+    const {attemptId}=req.params;
+    if(!attemptId){
+        return res.status(400).json({
+            success:false,
+            message:"Attempt id is wrong.",
+            code:400
+        })
+    }
+    const attempt=await attemptService.getAttemptById(userId,attemptId);
+    return res.status(200).json({
+        success:true,
+        message:"Attempt data fetched successfully",
+        code:200,
+        data:attempt
+    })
+  }catch(err){
+    console.error(err.message);
+    const statusCode=err.statusCode || 500;
+    return res.status(statusCode).json({
+        success:false,
+        message:statusCode===500?"Something went wrong.":err.message,
+        code:statusCode
+    })
+  }
+}
+
+const getAttemptByProblemId=async(req,res)=>{
+    try{
+        const userId=req.userId;
+        const {problemId}=req.params;
+        const attempts=await attemptService.getAttemptByProblemId(userId,problemId)
+        return res.status(200).json({
+            success:true,
+            message:"Problem history fetched successfully.",
+            code:200,
+            data:attempts
+        })
+
+    }catch(err){
+        console.error(err.message);
+        const statusCode=err.statusCode || 500
+        return res.status(statusCode).json({
+            success:false,
+            message:statusCode===500
+            ?"Something went wrong."
+            :err.message,
+            code:statusCode
+        })
+    }
+}
+
+module.exports={startAttempt,resumeAttempt,endAttemptSession,submitAttempt,getAttemptById,getAttemptByProblemId}

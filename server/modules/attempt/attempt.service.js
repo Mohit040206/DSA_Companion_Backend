@@ -145,6 +145,27 @@ if (activeSession) {
     return attempt;
 
 }
-module.exports={createAttempt,resumeAttempt,endAttemptSession,submitAttempt}
+
+const getAttemptById=async(userId,attemptId)=>{
+    const attempt=await Attempt.findOne({userId,_id:attemptId})
+    if(!attempt){
+        const error=new Error("Attempt not found.")
+        error.statusCode=404;
+        throw error
+    }
+    return attempt
+}
+
+const getAttemptByProblemId=async(userId,problemId)=>{
+    const attempts=await Attempt.find({userId,problemId}).sort({createdAt:-1})
+     if (attempts.length === 0) {
+    const error = new Error("No attempts found for this problem.");
+    error.statusCode = 404;
+    throw error;
+}
+return attempts;
+
+}
+module.exports={createAttempt,resumeAttempt,endAttemptSession,submitAttempt,getAttemptById,getAttemptByProblemId}
 
 
