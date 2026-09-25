@@ -1,5 +1,6 @@
 const Attempt=require("./attempt.model")
 const Problem=require("../problem/problem.model")
+const Revision=require("../revision/revision.model")
 
 const createAttempt=async(problemId,userId)=>{
     if(!userId){
@@ -139,6 +140,20 @@ if (activeSession) {
 
   
     attempt.completedAt = new Date();
+
+
+    const revision = await Revision.findOne({
+    userId,
+    completedByAttemptId: attempt._id,
+    status: "Pending"
+});
+
+if (revision) {
+    revision.status = "Completed";
+    revision.completedAt = new Date();
+
+    await revision.save();
+} 
 
     await attempt.save();
 

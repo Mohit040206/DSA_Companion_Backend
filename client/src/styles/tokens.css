@@ -1,0 +1,105 @@
+/* ============================================================
+   DSA TRACKER — DESIGN TOKENS
+   Light mode is default; [data-theme="dark"] on <html> overrides.
+   ============================================================ */
+
+:root{
+  /* ---- Light mode (default) ---- */
+  --bg:            #F7F8FA;
+  --surface:       #FFFFFF;
+  --surface-2:     #F1F3F6;
+  --surface-hover: #EAEDF2;
+  --text:          #111318;
+  --text-secondary:#5E6470;
+  --text-muted:    #9298A3;
+  --border:        #E1E4E8;
+  --border-strong: #C9CDD4;
+
+  --accent:        #5B6CFF;
+  --accent-2:      #7C5CFC;
+  --accent-tint:   rgba(91,108,255,.10);
+  --accent-tint-strong: rgba(91,108,255,.16);
+
+  --success:       #35B779;
+  --success-tint:  rgba(53,183,121,.12);
+  --warning:       #F0A63A;
+  --warning-tint:  rgba(240,166,58,.14);
+  --danger:        #E0646B;
+  --danger-tint:   rgba(224,100,107,.12);
+
+  --gradient-primary: linear-gradient(135deg, #5B6CFF, #7C5CFC);
+  --gradient-soft:    linear-gradient(135deg, rgba(91,108,255,.12), rgba(124,92,252,.08));
+
+  --shadow-sm: 0 1px 2px rgba(17,19,24,.05);
+  --shadow-md: 0 4px 16px rgba(17,19,24,.06);
+  --shadow-lg: 0 12px 32px rgba(17,19,24,.10);
+  --shadow-glow: 0 8px 28px rgba(91,108,255,.20);
+
+  /* ---- Type ---- */
+  --font-body: 'Inter', -apple-system, sans-serif;
+  --font-display: 'Archivo', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ---- Radius ---- */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-full: 999px;
+
+  /* ---- Spacing scale ---- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+  --sp-12: 48px; --sp-16: 64px;
+
+  /* ---- Motion ---- */
+  --dur-fast: 150ms;
+  --dur-med: 250ms;
+  --dur-enter: 400ms;
+  --ease: cubic-bezier(.2,.8,.2,1);
+
+  /* ---- Layout ---- */
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 76px;
+  --header-h: 64px;
+  --max-w: 1180px;
+}
+
+[data-theme="dark"]{
+  --bg:            #0B0F14;
+  --surface:       #111720;
+  --surface-2:     #151C26;
+  --surface-hover: #1A2230;
+  --text:          #EEF2F7;
+  --text-secondary:#9AA4B2;
+  --text-muted:    #667180;
+  --border:        #222B36;
+  --border-strong: #2E3846;
+
+  --accent:        #7C8CFF;
+  --accent-2:      #9B7CFF;
+  --accent-tint:   rgba(124,140,255,.14);
+  --accent-tint-strong: rgba(124,140,255,.22);
+
+  --success:       #45C994;
+  --success-tint:  rgba(69,201,148,.14);
+  --warning:       #F2B45B;
+  --warning-tint:  rgba(242,180,91,.16);
+  --danger:        #E8787E;
+  --danger-tint:   rgba(232,120,126,.14);
+
+  --gradient-primary: linear-gradient(135deg, #7C8CFF, #9B7CFF);
+  --gradient-soft:    linear-gradient(135deg, rgba(124,140,255,.14), rgba(155,124,255,.08));
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.35);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.45);
+  --shadow-glow: 0 8px 28px rgba(124,140,255,.25);
+}
+
+html{ color-scheme: light; }
+html[data-theme="dark"]{ color-scheme: dark; }
+body, .card, .sidebar, .app-header, .btn, .badge, .input{
+  transition: background-color var(--dur-med) var(--ease),
+              border-color var(--dur-med) var(--ease),
+              color var(--dur-med) var(--ease);
+}

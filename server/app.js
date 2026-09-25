@@ -9,6 +9,7 @@ const connectDB = require("./config/db");
 const problemRoutes = require("./modules/problem/problem.route");
 const authRoutes=require("./modules/auth/auth.route")
 const attemptRoutes=require("./modules/attempt/attempt.route")
+const revisionAttempt=require("./modules/revision/revision.route")
 
 dotenv.config();
 
@@ -29,5 +30,6 @@ app.get("/", (req, res) => {
 app.use("/api/auth",authRoutes)
 app.use("/api/problem", problemRoutes);
 app.use("/api/attempt", attemptRoutes);
+app.use("/api/revision",revisionAttempt);
 
 module.exports = app;
