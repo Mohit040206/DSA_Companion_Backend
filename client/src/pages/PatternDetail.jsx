@@ -9,21 +9,27 @@ export default function PatternDetail() {
   const [pattern, setPattern] = useState(null);
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     async function loadData() {
-      const [pats, allProbs] = await Promise.all([
-        patternAPI.getAll(),
-        problemAPI.getAll()
-      ]);
-      const found = pats.find(p => p.id === id) || pats[0];
-      setPattern(found);
+      try {
+        const [pats, allProbs] = await Promise.all([
+          patternAPI.getAll(),
+          problemAPI.getAll()
+        ]);
+        const found = pats.find(p => p.id === id) || pats[0] || { id, name: 'Pattern', solved: 0, attempted: 0, avgConfidence: 4, status: 'Developing' };
+        setPattern(found);
 
-      const matchingProbs = allProbs.filter(p =>
-        p.patterns?.some(pat => pat.toLowerCase() === found.id.toLowerCase() || pat.toLowerCase().includes(found.name.toLowerCase()))
-      );
-      setProblems(matchingProbs.length > 0 ? matchingProbs : allProbs.slice(0, 3));
-      setLoading(false);
+        const matchingProbs = allProbs.filter(p =>
+          p.patterns?.some(pat => pat.toLowerCase().replace(/\s+/g, '-') === found.id.toLowerCase() || pat.toLowerCase().includes((found.name || '').toLowerCase()))
+        );
+        setProblems(matchingProbs.length > 0 ? matchingProbs : allProbs.slice(0, 5));
+      } catch (err) {
+        setProblems([]);
+      } finally {
+        setLoading(false);
+      }
     }
     loadData();
   }, [id]);
@@ -118,38 +124,90 @@ function solveWith${pattern.name.replace(/\s+/g, '')}(arr, target) {
         {/* Problems Associated with Pattern */}
         <div className="card card-flush">
           <div style={{ padding: '20px 22px 14px' }}>
-            <h2>Problems Tagged Under {pattern.name}</h2>
+            <h2>Problems Tagged Under {pattern.name} ({problems.length})</h2>
           </div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Problem</th>
-                <th>Difficulty</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {problems.map((p) => (
-                <tr key={p.id}>
-                  <td className="problem-name">{p.title}</td>
-                  <td>
-                    <span className={`badge ${p.difficulty === 'Easy' ? 'badge-success' : 'badge-warning'}`}>
-                      {p.difficulty}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="badge badge-neutral">{p.status}</span>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <Link to={`/problems/${p.id}`} className="btn btn-sm btn-secondary">
-                      Solve <ArrowRight size={13} />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {(() => {
+            const PAGE_SIZE = 10;
+            const totalPages = Math.ceil(problems.length / PAGE_SIZE) || 1;
+            const currentPage = Math.min(page, totalPages);
+            const startIndex = (currentPage - 1) * PAGE_SIZE;
+            const paginatedProblems = problems.slice(startIndex, startIndex + PAGE_SIZE);
+
+            return (
+              <>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Problem</th>
+                      <th>Difficulty</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedProblems.map((p) => {
+                      const probId = p._id || p.id;
+                      return (
+                        <tr key={probId}>
+                          <td className="problem-name">{p.title}</td>
+                          <td>
+                            <span className={`badge ${p.difficulty === 'Easy' ? 'badge-success' : 'badge-warning'}`}>
+                              {p.difficulty}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="badge badge-neutral">{p.status || 'Not Attempted'}</span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <Link to={`/problems/${probId}`} className="btn btn-sm btn-secondary">
+                              Solve <ArrowRight size={13} />
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Pagination Footer */}
+                {problems.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    justify: 'space-between',
+                    alignItems: 'center',
+                    padding: '14px 20px',
+                    borderTop: '1px solid var(--border)',
+                    background: 'var(--surface-2)',
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <div>
+                      Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(startIndex + PAGE_SIZE, problems.length)}</strong> of <strong>{problems.length}</strong> problems
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      >
+                        Previous
+                      </button>
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text)', padding: '0 6px' }}>
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
     </AppShell>

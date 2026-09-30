@@ -66,7 +66,7 @@ img,svg{ display:block; max-width:100%; }
   position:sticky;
   top:0;
   height:100vh;
-  overflow:hidden;
+  overflow:visible;
   z-index:20;
 }
 .sidebar-brand{
@@ -119,14 +119,16 @@ img,svg{ display:block; max-width:100%; }
 .sidebar-user .who .role{ font-size:11.5px; color:var(--text-muted); }
 
 .sidebar-toggle{
-  position:absolute; top:18px; right:-12px;
-  width:24px; height:24px; border-radius:50%;
-  background:var(--surface); border:1px solid var(--border);
+  position:absolute; top:20px; right:-13px;
+  width:26px; height:26px; border-radius:50%;
+  background:var(--surface); border:1px solid var(--border-strong);
   display:flex; align-items:center; justify-content:center;
   cursor:pointer; color:var(--text-secondary);
-  transition:transform var(--dur-fast) var(--ease);
+  box-shadow:var(--shadow-md);
+  z-index:30;
+  transition:transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.sidebar-toggle:hover{ color:var(--accent); border-color:var(--accent); }
+.sidebar-toggle:hover{ color:var(--accent); border-color:var(--accent); background:var(--surface-hover); }
 .sidebar-collapsed .sidebar-toggle svg{ transform:rotate(180deg); }
 
 /* Header */

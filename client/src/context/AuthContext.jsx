@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authAPI } from '../services/api';
-import { INITIAL_USER } from '../services/mockData';
 
 const AuthContext = createContext();
 
@@ -14,19 +13,19 @@ export function AuthProvider({ children }) {
         const token = localStorage.getItem('dsa_token');
         if (token) {
           const profile = await authAPI.getProfile();
-          setUser(profile || INITIAL_USER);
-        } else {
-          // Default demo session for immediate exploration
-          setUser(INITIAL_USER);
+          setUser(profile || null);
         }
       } catch (err) {
-        setUser(INITIAL_USER);
+        // Token invalid / expired — clear it
+        localStorage.removeItem('dsa_token');
+        setUser(null);
       } finally {
         setLoading(false);
       }
     }
     loadUser();
   }, []);
+
 
   const login = async (credentials) => {
     const res = await authAPI.login(credentials);

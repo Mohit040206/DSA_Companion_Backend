@@ -12,13 +12,20 @@ export default function AttemptDetail() {
 
   useEffect(() => {
     async function loadAttempt() {
-      const att = await attemptAPI.getById(id);
-      if (att) {
-        setAttempt(att);
-        const prob = await problemAPI.getById(att.problemId);
-        setProblem(prob);
+      try {
+        const att = await attemptAPI.getById(id);
+        if (att) {
+          setAttempt(att);
+          try {
+            const prob = await problemAPI.getById(att.problemId);
+            setProblem(prob);
+          } catch (_) { /* ignore problem fetch error */ }
+        }
+      } catch (err) {
+        setAttempt(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     loadAttempt();
   }, [id]);

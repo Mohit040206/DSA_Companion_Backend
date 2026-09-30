@@ -20,8 +20,11 @@ import {
   Bell,
   ChevronLeft,
   LogOut,
-  SunMoon,
-  Keyboard
+  Keyboard,
+  Shield,
+  UploadCloud,
+  Users,
+  FileSpreadsheet
 } from 'lucide-react';
 
 const NAV_PRIMARY = [
@@ -35,6 +38,14 @@ const NAV_PRIMARY = [
 
 const NAV_SECONDARY = [
   { key: 'interview', label: 'Interview Mode', icon: Target, path: '/interview-mode' },
+  { key: 'import-records', label: 'Import Records', icon: FileSpreadsheet, path: '/import-records' },
+];
+
+const NAV_ADMIN = [
+  { key: 'admin-dashboard', label: 'Admin Overview', icon: Shield, path: '/admin/dashboard' },
+  { key: 'admin-problems', label: 'Manage Problems', icon: Code2, path: '/admin/problems' },
+  { key: 'admin-upload', label: 'Bulk Upload', icon: UploadCloud, path: '/admin/bulk-upload' },
+  { key: 'admin-users', label: 'Manage Users', icon: Users, path: '/admin/users' },
 ];
 
 const NAV_FOOT = [
@@ -122,6 +133,21 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
 
           <div className="sidebar-section-label">Focus</div>
           {NAV_SECONDARY.map(item => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.key}
+                to={item.path}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                <Icon size={18} />
+                <span className="label">{item.label}</span>
+              </NavLink>
+            );
+          })}
+
+          <div className="sidebar-section-label">Admin</div>
+          {NAV_ADMIN.map(item => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -233,6 +259,9 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
                 <div className="dropdown-divider"></div>
                 <Link to="/profile" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                   <UserIcon size={15} /> Profile
+                </Link>
+                <Link to="/admin/dashboard" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                  <Shield size={15} /> Admin Portal
                 </Link>
                 <Link to="/settings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                   <Settings size={15} /> Settings

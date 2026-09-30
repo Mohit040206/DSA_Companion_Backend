@@ -23,6 +23,13 @@ export const INITIAL_USER = {
   email: "mohit@example.com"
 };
 
+export const INITIAL_ADMIN_USERS = [
+  { id: "u-1", name: "Mohit Gupta", email: "mohit@example.com", role: "admin", targetRole: "SDE-2 / Backend", problemsSolved: 34, problemsAttempted: 42, currentStreak: 7, status: "Active", plan: "Premium", lastActive: "Just now" },
+  { id: "u-2", name: "Aarav Sharma", email: "aarav@example.com", role: "user", targetRole: "Full Stack Engineer", problemsSolved: 19, problemsAttempted: 28, currentStreak: 3, status: "Active", plan: "Core", lastActive: "2 hrs ago" },
+  { id: "u-3", name: "Riya Patel", email: "riya@example.com", role: "user", targetRole: "Frontend Engineer", problemsSolved: 12, problemsAttempted: 15, currentStreak: 0, status: "Inactive", plan: "Core", lastActive: "5 days ago" },
+  { id: "u-4", name: "Siddharth Rao", email: "siddharth@example.com", role: "user", targetRole: "Systems Engineer", problemsSolved: 0, problemsAttempted: 1, currentStreak: 0, status: "Suspended", plan: "Core", lastActive: "2 weeks ago" }
+];
+
 export const INITIAL_PATTERNS = [
   { id:"hashmap", name:"HashMap", attempted:14, solved:11, avgConfidence:3.9, revisions:1, status:"Strong" },
   { id:"sliding-window", name:"Sliding Window", attempted:9, solved:6, avgConfidence:3.4, revisions:1, status:"Practicing" },

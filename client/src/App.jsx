@@ -16,11 +16,19 @@ import PatternDetail from './pages/PatternDetail';
 import InterviewMode from './pages/InterviewMode';
 import AttemptHistory from './pages/AttemptHistory';
 import AttemptDetail from './pages/AttemptDetail';
+import ImportRecords from './pages/ImportRecords';
 import Revisions from './pages/Revisions';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
+
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminProblems from './pages/admin/AdminProblems';
+import AdminProblemForm from './pages/admin/AdminProblemForm';
+import AdminBulkUpload from './pages/admin/AdminBulkUpload';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminUserDetail from './pages/admin/AdminUserDetail';
 
 import './styles/tokens.css';
 import './styles/global.css';
@@ -42,7 +50,7 @@ export default function App() {
               <Route path="/auth/register" element={<Register />} />
               <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
-              {/* Main App Routes */}
+              {/* Learner App Routes */}
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/problems" element={<Problems />} />
               <Route path="/problems/:id" element={<ProblemDetail />} />
@@ -51,10 +59,21 @@ export default function App() {
               <Route path="/interview-mode" element={<InterviewMode />} />
               <Route path="/attempts" element={<AttemptHistory />} />
               <Route path="/attempts/:id" element={<AttemptDetail />} />
+              <Route path="/import-records" element={<ImportRecords />} />
               <Route path="/revisions" element={<Revisions />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
+
+              {/* Admin Portal Routes */}
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/problems" element={<AdminProblems />} />
+              <Route path="/admin/problems/new" element={<AdminProblemForm />} />
+              <Route path="/admin/problems/edit/:id" element={<AdminProblemForm />} />
+              <Route path="/admin/bulk-upload" element={<AdminBulkUpload />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/users/:id" element={<AdminUserDetail />} />
 
               {/* Fallback */}
               <Route path="*" element={<NotFound />} />

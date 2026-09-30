@@ -23,6 +23,9 @@ export default function InterviewMode() {
   const [problem, setProblem] = useState(null);
   const [timeLeft, setTimeLeft] = useState(45 * 60); // 45 minutes
   const [isRunning, setIsRunning] = useState(false);
+  const [hintsRevealed, setHintsRevealed] = useState(0);
+  const [code, setCode] = useState('');
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('JavaScript');
 
   const handleLanguageChange = (lang) => {
@@ -50,10 +53,15 @@ export default function InterviewMode() {
 
   useEffect(() => {
     async function loadMockProblem() {
-      const data = await problemAPI.getAll();
-      const mockProb = data.find(p => p.id === 'course-schedule') || data[0];
-      setProblem(mockProb);
-      setCode(`// Mock Interview Submission\n// Language: JavaScript\n\nfunction canFinish(numCourses, prerequisites) {\n  // 1. Build adjacency list\n  \n  // 2. Detect cycle\n  \n  return true;\n}`);
+      try {
+        const data = await problemAPI.getAll();
+        const safeData = Array.isArray(data) ? data : [];
+        const mockProb = safeData.find(p => p._id === 'course-schedule' || p.id === 'course-schedule') || safeData[0];
+        setProblem(mockProb);
+        setCode(`// Mock Interview Submission\n// Language: JavaScript\n\nfunction canFinish(numCourses, prerequisites) {\n  // 1. Build adjacency list\n  \n  // 2. Detect cycle\n  \n  return true;\n}`);
+      } catch (err) {
+        setProblem(null);
+      }
     }
     loadMockProblem();
   }, []);
@@ -84,10 +92,11 @@ export default function InterviewMode() {
   const handleCompleteSession = async (e) => {
     e.preventDefault();
     try {
+      const probId = problem?._id || problem?.id || 'course-schedule';
       const durationMin = Math.max(1, Math.round((45 * 60 - timeLeft) / 60));
-      await attemptAPI.start(problem?.id || 'course-schedule');
+      await attemptAPI.start(probId);
       await attemptAPI.submit('a-mock-' + Date.now(), {
-        problemId: problem?.id || 'course-schedule',
+        problemId: probId,
         outcome: hintsRevealed > 0 ? 'Solved with hints' : 'Solved',
         hints: hintsRevealed,
         confidence: hintsRevealed === 0 ? 4 : 2,

@@ -44,15 +44,40 @@ export default function ProblemDetail() {
   useEffect(() => {
     async function loadProblemData() {
       try {
-        const [prob, atts] = await Promise.all([
-          problemAPI.getById(id),
-          attemptAPI.getByProblem(id)
-        ]);
-        setProblem(prob);
-        setAttempts(atts || []);
-        setCode(prob?.codeSnippet || `// Write your solution here\nfunction ${prob?.id ? prob.id.replace(/-/g, '_') : 'solution'}(nums) {\n  \n}`);
+        let prob = null;
+        try {
+          prob = await problemAPI.getById(id);
+        } catch (_) {
+          // Fallback: search all problems if getById fails (e.g. invalid ID, old mock ID, or slug)
+          try {
+            const allProbs = await problemAPI.getAll();
+            if (Array.isArray(allProbs) && allProbs.length > 0) {
+              prob = allProbs.find(p =>
+                p._id === id || p.id === id || (p.title && p.title.toLowerCase().replace(/\s+/g, '-') === id.toLowerCase())
+              ) || allProbs[0];
+            }
+          } catch (_) {
+            prob = null;
+          }
+        }
+
+        if (prob) {
+          setProblem(prob);
+          const fnName = prob?.title ? prob.title.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'solution';
+          setCode(prob?.codeSnippet || `// Write your solution here\nfunction ${fnName}(nums) {\n  \n}`);
+
+          // Fetch attempts safely in isolated try/catch
+          try {
+            const atts = await attemptAPI.getByProblem(prob._id || id);
+            setAttempts(Array.isArray(atts) ? atts : []);
+          } catch (_) {
+            setAttempts([]);
+          }
+        } else {
+          showToast('Problem not found', 'error');
+        }
       } catch (err) {
-        showToast('Error loading problem', 'error');
+        showToast('Error loading problem details', 'error');
       } finally {
         setLoading(false);
       }
@@ -73,7 +98,7 @@ export default function ProblemDetail() {
   const handleSubmitAttempt = async (e) => {
     e.preventDefault();
     try {
-      const attId = attempts[0]?.id || 'a-new-' + Date.now();
+      const attId = attempts[0]?._id || attempts[0]?.id || 'a-new-' + Date.now();
       await attemptAPI.submit(attId, {
         problemId: id,
         ...reflectionForm
@@ -103,7 +128,7 @@ export default function ProblemDetail() {
     setSelectedLanguage(lang);
     setReflectionForm(prev => ({ ...prev, language: lang }));
 
-    const fnName = problem?.id ? problem.id.replace(/-/g, '_') : 'solution';
+    const fnName = problem?.title ? problem.title.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'solution';
     if (lang === 'Python') {
       setCode(`class Solution:\n    def ${fnName}(self, nums, k):\n        # Write Python solution here\n        pass`);
     } else if (lang === 'Java') {
@@ -142,13 +167,57 @@ export default function ProblemDetail() {
     );
   }
 
+  const derivedStatus = (() => {
+    if (!attempts || attempts.length === 0) return 'Not Attempted';
+    const hasSolved = attempts.some(a => 
+      a.outcome === 'Solved' || 
+      a.outcome === 'SolvedWithHints' || 
+      a.outcome === 'Solved with hints' ||
+      a.outcome === 'SolvedWithExternalHelp'
+    );
+    if (hasSolved) return 'Solved';
+    return 'In Progress';
+  })();
+
+  const getProblemExternalUrl = (prob) => {
+    if (!prob) return '#';
+    if (prob.url && !prob.url.includes('problem-variation-') && prob.url.includes('leetcode.com/problems/')) {
+      return prob.url;
+    }
+    const title = prob.title || '';
+    const cleanTitle = title.replace(/\s*Variation\s*#\d+/i, '').trim();
+    const pattern = (prob.patterns && prob.patterns[0]) ? prob.patterns[0] : cleanTitle;
+    return `https://leetcode.com/problemset/all/?search=${encodeURIComponent(pattern || cleanTitle)}`;
+  };
+
   return (
     <AppShell title={problem.title} crumb="Problems">
       <div className="enter">
         <div className="detail-header">
-          <Link to="/problems" className="breadcrumb-link">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/problems');
+              }
+            }}
+            className="breadcrumb-link"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              font: 'inherit',
+              color: 'var(--text-secondary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
             <ChevronLeft size={16} /> Back to Problems Directory
-          </Link>
+          </button>
           <h1>{problem.title}</h1>
 
           <div className="badge-row">
@@ -158,8 +227,10 @@ export default function ProblemDetail() {
               {problem.difficulty}
             </span>
             <span className="badge badge-neutral">{problem.platform || 'LeetCode'}</span>
-            <span className="badge badge-accent">
-              Status: {problem.status || 'In Progress'}
+            <span className={`badge ${
+              derivedStatus === 'Solved' ? 'badge-success' : derivedStatus === 'In Progress' ? 'badge-warning' : 'badge-neutral'
+            }`}>
+              Status: {derivedStatus}
             </span>
             {problem.lastConfidence && (
               <span className="badge badge-mono" style={{ background: 'var(--accent-tint)', color: 'var(--accent)' }}>
@@ -172,7 +243,7 @@ export default function ProblemDetail() {
             <button className="btn btn-primary" onClick={handleStartAttempt}>
               <Play size={16} /> Start Attempt Session
             </button>
-            <a href={problem.url} target="_blank" rel="noreferrer" className="btn btn-secondary">
+            <a href={getProblemExternalUrl(problem)} target="_blank" rel="noreferrer" className="btn btn-secondary">
               Open Original Problem <ExternalLink size={15} />
             </a>
           </div>
@@ -182,11 +253,11 @@ export default function ProblemDetail() {
         <div className="meta-grid">
           <div className="card meta-item">
             <div className="label">ESTIMATED DURATION</div>
-            <div className="val">{problem.estimatedTime || '20–25 min'}</div>
+            <div className="val">{problem.estimatedTime ? `${problem.estimatedTime} min` : '20–25 min'}</div>
           </div>
           <div className="card meta-item">
             <div className="label">TOTAL ATTEMPTS</div>
-            <div className="val">{attempts.length || 2} session(s)</div>
+            <div className="val">{attempts.length} session(s)</div>
           </div>
           <div className="card meta-item">
             <div className="label">PATTERN TAGS</div>

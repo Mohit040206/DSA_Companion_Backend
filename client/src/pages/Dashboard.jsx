@@ -34,9 +34,9 @@ export default function Dashboard() {
           revisionAPI.getAll(),
           attemptAPI.getAll()
         ]);
-        setProblems(probs || []);
-        setRevisions(revs || []);
-        setAttempts(atts || []);
+        setProblems(Array.isArray(probs) ? probs : []);
+        setRevisions(Array.isArray(revs) ? revs : []);
+        setAttempts(Array.isArray(atts) ? atts : []);
       } catch (err) {
         console.error('Error loading dashboard data', err);
       } finally {
@@ -79,7 +79,7 @@ export default function Dashboard() {
               {targetProblem?.learningObjectives || 'Use a prefix-sum + hashmap combo to count subarrays in a single linear pass.'}
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <Link to={`/problems/${targetProblem?.id || 'subarray-sum-equals-k'}`} className="btn btn-primary">
+              <Link to={`/problems/${targetProblem?._id || targetProblem?.id || 'subarray-sum-equals-k'}`} className="btn btn-primary">
                 Start Problem <ArrowRight size={16} />
               </Link>
               <Link to="/interview-mode" className="btn btn-secondary">

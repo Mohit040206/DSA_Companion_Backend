@@ -11,12 +11,27 @@ export default function Patterns() {
 
   useEffect(() => {
     async function loadPatterns() {
-      const data = await patternAPI.getAll();
-      setPatterns(data || []);
-      setLoading(false);
+      try {
+        const data = await patternAPI.getAll();
+        setPatterns(data || []);
+      } catch (err) {
+        setPatterns([]);
+      } finally {
+        setLoading(false);
+      }
     }
     loadPatterns();
   }, []);
+
+  if (loading) {
+    return (
+      <AppShell title="Pattern Breakdown" crumb="Prepare">
+        <div className="state-block">
+          <div className="skeleton skeleton-card" style={{ height: '200px' }} />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="Pattern Breakdown" crumb="Prepare">

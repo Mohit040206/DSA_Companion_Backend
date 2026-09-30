@@ -1,13 +1,4 @@
 import axios from 'axios';
-import {
-  INITIAL_USER,
-  INITIAL_PROBLEMS,
-  INITIAL_ATTEMPTS,
-  INITIAL_REVISIONS,
-  INITIAL_PATTERNS,
-  getStoredData,
-  setStoredData
-} from './mockData';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -27,259 +18,251 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-/* Helper for stub state */
-function getLocalProblems() { return getStoredData('problems', INITIAL_PROBLEMS); }
-function saveLocalProblems(list) { setStoredData('problems', list); }
-
-function getLocalAttempts() { return getStoredData('attempts', INITIAL_ATTEMPTS); }
-function saveLocalAttempts(list) { setStoredData('attempts', list); }
-
-function getLocalRevisions() { return getStoredData('revisions', INITIAL_REVISIONS); }
-function saveLocalRevisions(list) { setStoredData('revisions', list); }
-
-function getLocalUser() { return getStoredData('user', INITIAL_USER); }
-function saveLocalUser(u) { setStoredData('user', u); }
-
+// ──────────────────────────────────────────────
+// AUTH
+// ──────────────────────────────────────────────
 export const authAPI = {
   login: async (credentials) => {
-    try {
-      const res = await client.post('/auth/login', credentials);
-      if (res.data && res.data.token) {
-        localStorage.setItem('dsa_token', res.data.token);
-      }
-      return res.data;
-    } catch (err) {
-      console.warn('Backend login unavailable or failed, using stub mode fallback.', err?.response?.data || err.message);
-      // Stub fallback
-      const mockUser = getLocalUser();
-      const token = 'stub_jwt_token_' + Date.now();
-      localStorage.setItem('dsa_token', token);
-      return { success: true, user: mockUser, token };
+    const res = await client.post('/auth/login', credentials);
+    if (res.data && res.data.token) {
+      localStorage.setItem('dsa_token', res.data.token);
     }
+    return res.data;
   },
 
   register: async (userData) => {
-    try {
-      const res = await client.post('/auth/register', userData);
-      if (res.data && res.data.token) {
-        localStorage.setItem('dsa_token', res.data.token);
-      }
-      return res.data;
-    } catch (err) {
-      console.warn('Backend register unavailable, using stub fallback.');
-      const newUser = {
-        ...INITIAL_USER,
-        name: userData.name || userData.username || 'Developer',
-        email: userData.email,
-        role: userData.role || 'Software Engineer'
-      };
-      saveLocalUser(newUser);
-      const token = 'stub_jwt_token_' + Date.now();
-      localStorage.setItem('dsa_token', token);
-      return { success: true, user: newUser, token };
+    const res = await client.post('/auth/register', userData);
+    if (res.data && res.data.token) {
+      localStorage.setItem('dsa_token', res.data.token);
     }
+    return res.data;
   },
 
   getProfile: async () => {
-    try {
-      const res = await client.get('/auth/me');
-      return res.data.user || res.data;
-    } catch (err) {
-      return getLocalUser();
-    }
+    const res = await client.get('/auth/me');
+    return res.data.user || res.data;
   },
 
   logout: async () => {
-    try {
-      await client.post('/auth/logout');
-    } catch (err) {
-      // ignore
-    }
+    try { await client.post('/auth/logout'); } catch (_) { /* ignore */ }
     localStorage.removeItem('dsa_token');
   }
 };
 
+// ──────────────────────────────────────────────
+// PROBLEMS
+// ──────────────────────────────────────────────
 export const problemAPI = {
-  getAll: async () => {
-    try {
-      const res = await client.get('/problem');
-      return res.data.problems || res.data;
-    } catch (err) {
-      return getLocalProblems();
-    }
+  getAll: async (params = {}) => {
+    const res = await client.get('/problem', { params });
+    // Backend returns { success, data: [...] }
+    return Array.isArray(res.data) ? res.data : (res.data.data || res.data.problems || []);
   },
 
   getById: async (id) => {
-    try {
-      const res = await client.get(`/problem/${id}`);
-      return res.data.problem || res.data;
-    } catch (err) {
-      const list = getLocalProblems();
-      return list.find(p => p.id === id || p._id === id) || list[0];
-    }
+    const res = await client.get(`/problem/${id}`);
+    return res.data.data || res.data.problem || res.data;
   },
 
   create: async (problemData) => {
-    try {
-      const res = await client.post('/problem', problemData);
-      return res.data;
-    } catch (err) {
-      const list = getLocalProblems();
-      const newProb = {
-        id: 'p-' + Date.now(),
-        ...problemData,
-        status: 'Not Attempted',
-        lastConfidence: null
-      };
-      saveLocalProblems([newProb, ...list]);
-      return newProb;
-    }
+    const res = await client.post('/problem', problemData);
+    return res.data.data || res.data;
+  },
+
+  update: async (id, updateData) => {
+    const res = await client.put(`/problem/${id}`, updateData);
+    return res.data.data || res.data;
+  },
+
+  delete: async (id) => {
+    const res = await client.delete(`/problem/${id}`);
+    return res.data;
+  },
+
+  bulkUpload: async (problemsArray) => {
+    const res = await client.post('/problem/bulk', { problems: problemsArray });
+    return res.data;
+  },
+
+  reseed: async () => {
+    const res = await client.post('/problem/reseed');
+    return res.data;
   }
 };
 
+// ──────────────────────────────────────────────
+// ATTEMPTS
+// ──────────────────────────────────────────────
 export const attemptAPI = {
   start: async (problemId) => {
-    try {
-      const res = await client.post('/attempt/start', { problemId });
-      return res.data;
-    } catch (err) {
-      const attempts = getLocalAttempts();
-      const problems = getLocalProblems();
-      const prob = problems.find(p => p.id === problemId || p._id === problemId);
-      const newAttempt = {
-        id: 'a-' + Date.now(),
-        problemId: problemId,
-        attemptNumber: (attempts.filter(a => a.problemId === problemId).length || 0) + 1,
-        date: new Date().toISOString().split('T')[0],
-        when: 'Just now',
-        outcome: 'In Progress',
-        hints: 0,
-        confidence: null,
-        durationMin: 0,
-        language: 'JavaScript',
-        approach: '',
-        startedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      saveLocalAttempts([newAttempt, ...attempts]);
-      return newAttempt;
-    }
+    const res = await client.post('/attempt/start', { problemId });
+    return res.data.data || res.data;
   },
 
   submit: async (attemptId, submissionData) => {
-    try {
-      const res = await client.post(`/attempt/${attemptId}/submit`, submissionData);
-      return res.data;
-    } catch (err) {
-      const attempts = getLocalAttempts();
-      const updated = attempts.map(a => {
-        if (a.id === attemptId || a._id === attemptId) {
-          return {
-            ...a,
-            ...submissionData,
-            outcome: submissionData.outcome || 'Solved',
-            completedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-        }
-        return a;
-      });
-      saveLocalAttempts(updated);
-      return updated.find(a => a.id === attemptId);
-    }
+    const res = await client.post(`/attempt/${attemptId}/submit`, submissionData);
+    return res.data.data || res.data;
   },
 
   getById: async (attemptId) => {
-    try {
-      const res = await client.get(`/attempt/${attemptId}`);
-      return res.data.attempt || res.data;
-    } catch (err) {
-      const attempts = getLocalAttempts();
-      return attempts.find(a => a.id === attemptId || a._id === attemptId) || attempts[0];
-    }
+    const res = await client.get(`/attempt/${attemptId}`);
+    return res.data.data || res.data.attempt || res.data;
   },
 
   getByProblem: async (problemId) => {
-    try {
-      const res = await client.get(`/attempt/problem/${problemId}`);
-      return res.data.attempts || res.data;
-    } catch (err) {
-      const attempts = getLocalAttempts();
-      return attempts.filter(a => a.problemId === problemId || a.problem === problemId);
-    }
+    const res = await client.get(`/attempt/problem/${problemId}`);
+    const d = res.data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d?.data)) return d.data;
+    if (Array.isArray(d?.data?.attempts)) return d.data.attempts;
+    if (Array.isArray(d?.attempts)) return d.attempts;
+    return [];
   },
 
   getAll: async () => {
-    try {
-      const res = await client.get('/attempt');
-      return res.data.attempts || res.data;
-    } catch (err) {
-      return getLocalAttempts();
-    }
+    const res = await client.get('/attempt');
+    const d = res.data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d?.data)) return d.data;
+    if (Array.isArray(d?.data?.attempts)) return d.data.attempts;
+    if (Array.isArray(d?.attempts)) return d.attempts;
+    return [];
+  },
+
+  resumeSession: async (attemptId) => {
+    const res = await client.post(`/attempt/session/${attemptId}/resume`);
+    return res.data.data || res.data;
+  },
+
+  endSession: async (attemptId) => {
+    const res = await client.post(`/attempt/session/${attemptId}/end`);
+    return res.data.data || res.data;
+  },
+
+  importRecords: async (recordsArray) => {
+    const res = await client.post('/attempt/import', { records: recordsArray });
+    return res.data;
   }
 };
 
+// ──────────────────────────────────────────────
+// REVISIONS
+// ──────────────────────────────────────────────
 export const revisionAPI = {
   getAll: async () => {
-    try {
-      const res = await client.get('/revision');
-      return res.data.revisions || res.data;
-    } catch (err) {
-      return getLocalRevisions();
-    }
+    const res = await client.get('/revision');
+    const d = res.data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d?.data)) return d.data;
+    if (Array.isArray(d?.data?.revisions)) return d.data.revisions;
+    if (Array.isArray(d?.revisions)) return d.revisions;
+    return [];
   },
 
   getById: async (revisionId) => {
-    try {
-      const res = await client.get(`/revision/${revisionId}`);
-      return res.data.revision || res.data;
-    } catch (err) {
-      const list = getLocalRevisions();
-      return list.find(r => r.id === revisionId || r._id === revisionId) || list[0];
-    }
+    const res = await client.get(`/revision/${revisionId}`);
+    return res.data.data || res.data.revision || res.data;
   },
 
   create: async (revisionData) => {
-    try {
-      const res = await client.post('/revision', revisionData);
-      return res.data;
-    } catch (err) {
-      const list = getLocalRevisions();
-      const newRev = {
-        id: 'r-' + Date.now(),
-        status: 'today',
-        scheduledFor: new Date().toISOString().split('T')[0],
-        overdueByDays: 0,
-        ...revisionData
-      };
-      saveLocalRevisions([newRev, ...list]);
-      return newRev;
-    }
+    const res = await client.post('/revision', revisionData);
+    return res.data.data || res.data;
   },
 
   start: async (revisionId) => {
-    try {
-      const res = await client.post(`/revision/${revisionId}/start`);
-      return res.data;
-    } catch (err) {
-      const list = getLocalRevisions();
-      return list.find(r => r.id === revisionId || r._id === revisionId);
-    }
+    const res = await client.post(`/revision/${revisionId}/start`);
+    return res.data.data || res.data;
   },
 
   skip: async (revisionId) => {
+    const res = await client.post(`/revision/${revisionId}/skip`);
+    return res.data;
+  }
+};
+
+// ──────────────────────────────────────────────
+// PATTERNS (static – computed from problems)
+// ──────────────────────────────────────────────
+export const patternAPI = {
+  getAll: async () => {
     try {
-      const res = await client.post(`/revision/${revisionId}/skip`);
-      return res.data;
-    } catch (err) {
-      const list = getLocalRevisions();
-      const filtered = list.filter(r => r.id !== revisionId && r._id !== revisionId);
-      saveLocalRevisions(filtered);
-      return { success: true };
+      const problems = await problemAPI.getAll();
+      const map = {};
+      problems.forEach(p => {
+        (p.patterns || []).forEach(pat => {
+          const key = pat.toLowerCase().replace(/\s+/g, '-');
+          if (!map[key]) {
+            map[key] = {
+              id: key,
+              name: pat,
+              count: 0,
+              solved: 0,
+              attempted: 0,
+              revisions: 0,
+              avgConfidence: 4.0,
+              status: 'Developing'
+            };
+          }
+          map[key].count += 1;
+          if (p.status === 'Solved') {
+            map[key].solved += 1;
+            map[key].attempted += 1;
+          } else if (p.status === 'Needs Revision') {
+            map[key].revisions += 1;
+            map[key].attempted += 1;
+          } else if (p.status === 'In Progress') {
+            map[key].attempted += 1;
+          }
+        });
+      });
+
+      // Compute status for each pattern
+      Object.values(map).forEach(pat => {
+        const ratio = pat.count > 0 ? pat.solved / pat.count : 0;
+        if (ratio >= 0.7) pat.status = 'Strong';
+        else if (pat.revisions > 0) pat.status = 'Needs attention';
+        else pat.status = 'Developing';
+      });
+
+      return Object.values(map);
+    } catch {
+      return [];
     }
   }
 };
 
-export const patternAPI = {
-  getAll: async () => {
-    return INITIAL_PATTERNS;
+// ──────────────────────────────────────────────
+// ADMIN
+// ──────────────────────────────────────────────
+export const adminAPI = {
+  deleteProblem: async (id) => {
+    const res = await client.delete(`/problem/${id}`);
+    return res.data;
+  },
+
+  updateProblem: async (id, updateData) => {
+    const res = await client.put(`/problem/${id}`, updateData);
+    return res.data.data || res.data;
+  },
+
+  bulkUpload: async (problemsArray) => {
+    const res = await client.post('/problem/bulk', { problems: problemsArray });
+    return res.data;
+  },
+
+  getUsers: async (filters = {}) => {
+    const res = await client.get('/user', { params: filters });
+    const d = res.data;
+    return Array.isArray(d) ? d : (d.data || d.users || []);
+  },
+
+  getUserById: async (id) => {
+    const res = await client.get(`/user/${id}`);
+    return res.data.data || res.data.user || res.data;
+  },
+
+  updateUserStatus: async (id, status) => {
+    const res = await client.put(`/user/${id}/status`, { status });
+    return res.data;
   }
 };

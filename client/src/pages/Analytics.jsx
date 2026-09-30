@@ -1,12 +1,14 @@
 import React from 'react';
 import AppShell from '../components/layout/AppShell';
-import {
-  CONFIDENCE_TREND,
-  HINTS_TREND,
-  SOLVED_PER_WEEK,
-  OUTCOME_DISTRIBUTION
-} from '../services/mockData';
-import { TrendingUp, Award, Zap, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Zap, AlertTriangle } from 'lucide-react';
+
+const OUTCOME_DISTRIBUTION = [
+  { label: 'Solved clean', value: 34, color: 'var(--success)' },
+  { label: 'Solved with hints', value: 22, color: 'var(--warning)' },
+  { label: 'Could not solve', value: 9, color: 'var(--danger)' },
+  { label: 'Paused / in progress', value: 5, color: 'var(--text-muted)' },
+];
+const SOLVED_PER_WEEK = [2, 4, 3, 5, 3];
 
 export default function Analytics() {
   return (

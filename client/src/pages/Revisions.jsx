@@ -19,10 +19,12 @@ export default function Revisions() {
           revisionAPI.getAll(),
           problemAPI.getAll()
         ]);
-        setRevisions(revs || []);
-        setProblems(probs || []);
+        setRevisions(Array.isArray(revs) ? revs : []);
+        setProblems(Array.isArray(probs) ? probs : []);
       } catch (err) {
         showToast('Error loading revisions', 'error');
+        setRevisions([]);
+        setProblems([]);
       } finally {
         setLoading(false);
       }
@@ -50,9 +52,22 @@ export default function Revisions() {
     }
   };
 
-  const overdueList = revisions.filter(r => r.status === 'overdue');
-  const todayList = revisions.filter(r => r.status === 'today');
-  const upcomingList = revisions.filter(r => r.status === 'tomorrow' || r.status === 'upcoming');
+  if (loading) {
+    return (
+      <AppShell title="Spaced Repetition Queue" crumb="Prepare">
+        <div className="state-block">
+          <div className="skeleton skeleton-card" style={{ height: '200px' }} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const safeRevisions = Array.isArray(revisions) ? revisions : [];
+  const safeProblems = Array.isArray(problems) ? problems : [];
+
+  const overdueList = safeRevisions.filter(r => r.status === 'overdue');
+  const todayList = safeRevisions.filter(r => r.status === 'today');
+  const upcomingList = safeRevisions.filter(r => r.status === 'tomorrow' || r.status === 'upcoming');
 
   return (
     <AppShell title="Spaced Repetition Queue" crumb="Prepare">
@@ -71,7 +86,7 @@ export default function Revisions() {
               </h2>
             </div>
             {overdueList.map(rev => {
-              const prob = problems.find(p => p.id === rev.problemId) || { title: rev.problemId };
+              const prob = safeProblems.find(p => p._id === rev.problemId || p.id === rev.problemId) || { title: rev.problemId };
               return (
                 <div key={rev.id || rev._id} className="revision-card">
                   <div className="rev-status-dot overdue" />
@@ -110,7 +125,7 @@ export default function Revisions() {
             </div>
           ) : (
             todayList.map(rev => {
-              const prob = problems.find(p => p.id === rev.problemId) || { title: rev.problemId };
+              const prob = safeProblems.find(p => p._id === rev.problemId || p.id === rev.problemId) || { title: rev.problemId };
               return (
                 <div key={rev.id || rev._id} className="revision-card">
                   <div className="rev-status-dot" />
@@ -143,28 +158,34 @@ export default function Revisions() {
           <div className="section-head">
             <h2>Upcoming Schedule ({upcomingList.length})</h2>
           </div>
-          {upcomingList.map(rev => {
-            const prob = problems.find(p => p.id === rev.problemId) || { title: rev.problemId };
-            return (
-              <div key={rev.id || rev._id} className="revision-card">
-                <div className="rev-status-dot" style={{ background: 'var(--accent)' }} />
-                <div className="rev-body">
-                  <div className="rev-title">{prob.title}</div>
-                  <div className="rev-reason">
-                    <strong>Focus:</strong> {rev.focus}
+          {upcomingList.length === 0 ? (
+            <div className="card" style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>
+              No upcoming revisions queued yet.
+            </div>
+          ) : (
+            upcomingList.map(rev => {
+              const prob = safeProblems.find(p => p._id === rev.problemId || p.id === rev.problemId) || { title: rev.problemId };
+              return (
+                <div key={rev.id || rev._id} className="revision-card">
+                  <div className="rev-status-dot" style={{ background: 'var(--accent)' }} />
+                  <div className="rev-body">
+                    <div className="rev-title">{prob.title}</div>
+                    <div className="rev-reason">
+                      <strong>Focus:</strong> {rev.focus}
+                    </div>
+                    <div className="rev-meta-row">
+                      <span className="badge badge-accent">Scheduled for {rev.scheduledFor}</span>
+                    </div>
                   </div>
-                  <div className="rev-meta-row">
-                    <span className="badge badge-accent">Scheduled for {rev.scheduledFor}</span>
+                  <div className="rev-right">
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleStartRevision(rev)}>
+                      Preview
+                    </button>
                   </div>
                 </div>
-                <div className="rev-right">
-                  <button className="btn btn-secondary btn-sm" onClick={() => handleStartRevision(rev)}>
-                    Preview
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </AppShell>

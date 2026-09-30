@@ -6,25 +6,31 @@ import { useToast } from '../components/common/Toast';
 import {
   Plus,
   Search,
-  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
   Filter,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
   X
 } from 'lucide-react';
 
 export default function Problems() {
-  const [searchParams] = useSearchParams();
-  const initialSearch = searchParams.get('search') || '';
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const searchParamVal = searchParams.get('search') || '';
+  const diffParamVal = searchParams.get('difficulty') || 'All';
+  const statusParamVal = searchParams.get('status') || 'All';
+  const patternParamVal = searchParams.get('pattern') || 'All';
+  const pageParamVal = parseInt(searchParams.get('page')) || 1;
 
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState(initialSearch);
-  const [difficultyFilter, setDifficultyFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [search, setSearch] = useState(searchParamVal);
+  const [difficultyFilter, setDifficultyFilter] = useState(diffParamVal);
+  const [statusFilter, setStatusFilter] = useState(statusParamVal);
+  const [patternFilter, setPatternFilter] = useState(patternParamVal);
+  const [page, setPage] = useState(pageParamVal);
+  const PAGE_SIZE = 10;
 
+  const [modalOpen, setModalOpen] = useState(false);
   const { showToast } = useToast();
 
   const [newProblem, setNewProblem] = useState({
@@ -37,19 +43,71 @@ export default function Problems() {
     url: ''
   });
 
+  // Sync state if searchParams change externally (e.g. browser back/forward)
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+    setDifficultyFilter(searchParams.get('difficulty') || 'All');
+    setStatusFilter(searchParams.get('status') || 'All');
+    setPatternFilter(searchParams.get('pattern') || 'All');
+    setPage(parseInt(searchParams.get('page')) || 1);
+  }, [searchParams]);
+
   useEffect(() => {
     async function loadProblems() {
       try {
         const data = await problemAPI.getAll();
-        setProblems(data || []);
+        setProblems(Array.isArray(data) ? data : []);
       } catch (err) {
-        showToast('Failed to load problems', 'error');
+        showToast('Failed to load problems. Is the server running?', 'error');
+        setProblems([]);
       } finally {
         setLoading(false);
       }
     }
     loadProblems();
   }, []);
+
+  // Extract unique pattern options from existing problems
+  const availablePatterns = ['All', ...Array.from(new Set(problems.flatMap(p => p.patterns || [])))];
+
+  const updateFilterParams = (newFilters) => {
+    const nextSearch = newFilters.search !== undefined ? newFilters.search : search;
+    const nextDiff = newFilters.difficulty !== undefined ? newFilters.difficulty : difficultyFilter;
+    const nextStatus = newFilters.status !== undefined ? newFilters.status : statusFilter;
+    const nextPattern = newFilters.pattern !== undefined ? newFilters.pattern : patternFilter;
+    const nextPage = newFilters.page !== undefined ? newFilters.page : 1;
+
+    setSearch(nextSearch);
+    setDifficultyFilter(nextDiff);
+    setStatusFilter(nextStatus);
+    setPatternFilter(nextPattern);
+    setPage(nextPage);
+
+    const params = {};
+    if (nextSearch) params.search = nextSearch;
+    if (nextDiff !== 'All') params.difficulty = nextDiff;
+    if (nextStatus !== 'All') params.status = nextStatus;
+    if (nextPattern !== 'All') params.pattern = nextPattern;
+    if (nextPage > 1) params.page = String(nextPage);
+
+    setSearchParams(params, { replace: true });
+  };
+
+  const handleSearchChange = (e) => {
+    updateFilterParams({ search: e.target.value, page: 1 });
+  };
+
+  const handleDifficultyChange = (diff) => {
+    updateFilterParams({ difficulty: diff, page: 1 });
+  };
+
+  const handleStatusChange = (st) => {
+    updateFilterParams({ status: st, page: 1 });
+  };
+
+  const handlePatternChange = (pat) => {
+    updateFilterParams({ pattern: pat, page: 1 });
+  };
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -78,14 +136,21 @@ export default function Problems() {
 
   const filteredProblems = problems.filter((p) => {
     const matchesSearch =
+      !search ||
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.patterns?.some(pat => pat.toLowerCase().includes(search.toLowerCase()));
 
     const matchesDiff = difficultyFilter === 'All' || p.difficulty === difficultyFilter;
     const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+    const matchesPattern = patternFilter === 'All' || p.patterns?.includes(patternFilter);
 
-    return matchesSearch && matchesDiff && matchesStatus;
+    return matchesSearch && matchesDiff && matchesStatus && matchesPattern;
   });
+
+  const totalPages = Math.ceil(filteredProblems.length / PAGE_SIZE) || 1;
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const paginatedProblems = filteredProblems.slice(startIndex, startIndex + PAGE_SIZE);
 
   return (
     <AppShell title="Problems Directory" crumb="Prepare">
@@ -100,44 +165,65 @@ export default function Problems() {
           </button>
         </div>
 
-        {/* Toolbar */}
-        <div className="toolbar">
-          <div className="search-box" style={{ width: '280px' }}>
-            <Search size={15} />
-            <input
-              type="text"
-              placeholder="Search problems or patterns..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        {/* Toolbar & Filters */}
+        <div className="toolbar" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+          {/* Top row: Search + Difficulty + Status */}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="search-box" style={{ width: '280px' }}>
+              <Search size={15} />
+              <input
+                type="text"
+                placeholder="Search problems or patterns..."
+                value={search}
+                onChange={handleSearchChange}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {['All', 'Easy', 'Medium', 'Hard'].map((diff) => (
+                <button
+                  key={diff}
+                  className={`filter-chip ${difficultyFilter === diff ? 'active' : ''}`}
+                  onClick={() => handleDifficultyChange(diff)}
+                >
+                  {diff}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginLeft: 'auto' }}>
+              {['All', 'Solved', 'Needs Revision', 'In Progress', 'Not Attempted'].map((st) => (
+                <button
+                  key={st}
+                  className={`filter-chip ${statusFilter === st ? 'active' : ''}`}
+                  onClick={() => handleStatusChange(st)}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {['All', 'Easy', 'Medium', 'Hard'].map((diff) => (
-              <button
-                key={diff}
-                className={`filter-chip ${difficultyFilter === diff ? 'active' : ''}`}
-                onClick={() => setDifficultyFilter(diff)}
-              >
-                {diff}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginLeft: 'auto' }}>
-            {['All', 'Solved', 'Needs Revision', 'In Progress', 'Not Attempted'].map((st) => (
-              <button
-                key={st}
-                className={`filter-chip ${statusFilter === st ? 'active' : ''}`}
-                onClick={() => setStatusFilter(st)}
-              >
-                {st}
-              </button>
-            ))}
+          {/* Pattern Filter Row (Horizontally Scrollable) */}
+          <div className="pattern-filter-bar">
+            <span className="filter-label">
+              <Filter size={13} /> Pattern:
+            </span>
+            <div className="pattern-filter-scroll">
+              {availablePatterns.map((pat) => (
+                <button
+                  key={pat}
+                  className={`filter-chip ${patternFilter === pat ? 'active' : ''}`}
+                  onClick={() => handlePatternChange(pat)}
+                >
+                  {pat}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Table / Card Container */}
+        {/* Table Container */}
         <div className="card card-flush">
           <table className="table">
             <thead>
@@ -151,7 +237,7 @@ export default function Problems() {
               </tr>
             </thead>
             <tbody>
-              {filteredProblems.length === 0 ? (
+              {paginatedProblems.length === 0 ? (
                 <tr>
                   <td colSpan="6">
                     <div className="state-block">
@@ -162,13 +248,14 @@ export default function Problems() {
                   </td>
                 </tr>
               ) : (
-                filteredProblems.map((p) => {
+                paginatedProblems.map((p) => {
+                  const probId = p._id || p.id;
                   const isSolved = p.status === 'Solved';
                   const isRev = p.status === 'Needs Revision';
                   return (
-                    <tr key={p.id || p._id}>
+                    <tr key={probId}>
                       <td>
-                        <Link to={`/problems/${p.id || p._id}`} className="problem-name" style={{ color: 'var(--text)' }}>
+                        <Link to={`/problems/${probId}`} className="problem-name" style={{ color: 'var(--text)' }}>
                           {p.title}
                         </Link>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{p.platform || 'LeetCode'}</div>
@@ -196,11 +283,11 @@ export default function Problems() {
                         <span className={`badge ${
                           isSolved ? 'badge-success' : isRev ? 'badge-danger' : 'badge-neutral'
                         }`}>
-                          {p.status}
+                          {p.status || 'Not Attempted'}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <Link to={`/problems/${p.id || p._id}`} className="btn btn-sm btn-secondary">
+                        <Link to={`/problems/${probId}`} className="btn btn-sm btn-secondary">
                           Practice
                         </Link>
                       </td>
@@ -210,6 +297,47 @@ export default function Problems() {
               )}
             </tbody>
           </table>
+
+          {/* Pagination Footer */}
+          {filteredProblems.length > 0 && (
+            <div style={{
+              display: 'flex',
+              justify: 'space-between',
+              alignItems: 'center',
+              padding: '14px 20px',
+              borderTop: '1px solid var(--border)',
+              background: 'var(--surface-2)',
+              fontSize: '13px',
+              color: 'var(--text-secondary)'
+            }}>
+              <div>
+                Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(startIndex + PAGE_SIZE, filteredProblems.length)}</strong> of <strong>{filteredProblems.length}</strong> problems
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  className="btn btn-sm btn-secondary"
+                  disabled={currentPage <= 1}
+                  onClick={() => updateFilterParams({ page: Math.max(1, currentPage - 1) })}
+                  style={{ gap: '4px' }}
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+                
+                <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text)', padding: '0 6px' }}>
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <button
+                  className="btn btn-sm btn-secondary"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => updateFilterParams({ page: Math.min(totalPages, currentPage + 1) })}
+                  style={{ gap: '4px' }}
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
