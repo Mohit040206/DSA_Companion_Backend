@@ -24,8 +24,8 @@ const register=async(req,res)=>{
                 success:true,
                 code:201,
                 message:"User registered successfully",
+                token,
                 data:user
-
             })
         
 
@@ -67,6 +67,7 @@ const login = async (req, res) => {
             success: true,
             message: "Login successful",
             code: 200,
+            token,
             data: user
         });
 

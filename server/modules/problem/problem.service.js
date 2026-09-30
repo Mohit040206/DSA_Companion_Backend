@@ -5,16 +5,16 @@ const addProblem = async (problemData) => {
     return await problem.save();
 };
 
-const getAllProblem=async(filters={})=>{
-const query = {};
+const getAllProblem = async (filters = {}) => {
+    const query = {};
 
-    if (filters.difficulty) {
+    if (filters.difficulty && filters.difficulty !== 'All') {
         query.difficulty = filters.difficulty;
     }
-    if (filters.platform) {
+    if (filters.platform && filters.platform !== 'All') {
         query.platform = filters.platform;
     }
-    if (filters.pattern) {
+    if (filters.pattern && filters.pattern !== 'All') {
         query.patterns = { $in: [filters.pattern] };
     }
     if (filters.search) {
@@ -25,7 +25,26 @@ const query = {};
 };
 
 const getProblemById = async (id) => {
-    const problem = await Problem.findById(id).populate("createdBy", "name username email");
+    try {
+        const problem = await Problem.findById(id).populate("createdBy", "name username email");
+        if (!problem) {
+            const error = new Error("Problem not found");
+            error.statusCode = 404;
+            throw error;
+        }
+        return problem;
+    } catch (err) {
+        if (err.name === 'CastError') {
+            const error = new Error("Problem not found");
+            error.statusCode = 404;
+            throw error;
+        }
+        throw err;
+    }
+};
+
+const updateProblem = async (id, updateData) => {
+    const problem = await Problem.findByIdAndUpdate(id, updateData, { new: true });
     if (!problem) {
         const error = new Error("Problem not found");
         error.statusCode = 404;
@@ -34,4 +53,29 @@ const getProblemById = async (id) => {
     return problem;
 };
 
-module.exports = { addProblem,getAllProblem,getProblemById };
+const deleteProblem = async (id) => {
+    const problem = await Problem.findByIdAndDelete(id);
+    if (!problem) {
+        const error = new Error("Problem not found");
+        error.statusCode = 404;
+        throw error;
+    }
+    return problem;
+};
+
+const bulkAddProblems = async (problemsArray, userId) => {
+    const prepared = problemsArray.map(p => ({
+        ...p,
+        createdBy: userId
+    }));
+    return await Problem.insertMany(prepared);
+};
+
+module.exports = {
+    addProblem,
+    getAllProblem,
+    getProblemById,
+    updateProblem,
+    deleteProblem,
+    bulkAddProblems
+};

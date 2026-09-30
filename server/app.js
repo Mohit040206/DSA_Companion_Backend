@@ -3,20 +3,21 @@ const dotenv = require("dotenv");
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const cookieParser=require("cookie-parser")
+const cookieParser = require("cookie-parser");
 
 const connectDB = require("./config/db");
 const problemRoutes = require("./modules/problem/problem.route");
-const authRoutes=require("./modules/auth/auth.route")
-const attemptRoutes=require("./modules/attempt/attempt.route")
-const revisionAttempt=require("./modules/revision/revision.route")
+const authRoutes = require("./modules/auth/auth.route");
+const attemptRoutes = require("./modules/attempt/attempt.route");
+const revisionRoutes = require("./modules/revision/revision.route");
+const userRoutes = require("./modules/user/user.route");
 
 dotenv.config();
 
 const app = express();
 
 app.use(cors({
-    origin: "http://localhost:3000", // or true to reflect request origin
+    origin: true,
     credentials: true
 }));
 app.use(express.json());
@@ -27,9 +28,10 @@ connectDB();
 app.get("/", (req, res) => {
     res.send("APP is healthy");
 });
-app.use("/api/auth",authRoutes)
+app.use("/api/auth", authRoutes);
 app.use("/api/problem", problemRoutes);
 app.use("/api/attempt", attemptRoutes);
-app.use("/api/revision",revisionAttempt);
+app.use("/api/revision", revisionRoutes);
+app.use("/api/user", userRoutes);
 
 module.exports = app;

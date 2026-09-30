@@ -222,4 +222,52 @@ const getAttemptByProblemId=async(req,res)=>{
     }
 }
 
-module.exports={startAttempt,resumeAttempt,endAttemptSession,submitAttempt,getAttemptById,getAttemptByProblemId}
+const getAllAttempts=async(req,res)=>{
+  try{
+    const userId=req.userId;
+    const attempts=await attemptService.getAllAttempts(userId);
+    return res.status(200).json(attempts);
+  }catch(err){
+    console.error(err.message);
+    const statusCode=err.statusCode || 500;
+    return res.status(statusCode).json({
+      success:false,
+      message:statusCode===500?"Something went wrong.":err.message,
+      code:statusCode
+    });
+  }
+};
+
+const importUserRecords = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { records } = req.body;
+
+    if (!records || !Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide an array of records to import.",
+        code: 400
+      });
+    }
+
+    const result = await attemptService.bulkImportAttempts(userId, records);
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully imported ${result.attemptsCreated} attempt records.`,
+      code: 200,
+      data: result
+    });
+  } catch (err) {
+    console.error("Error in importUserRecords:", err.message);
+    const statusCode = err.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: statusCode === 500 ? "Something went wrong during import." : err.message,
+      code: statusCode
+    });
+  }
+};
+
+module.exports={startAttempt,resumeAttempt,endAttemptSession,submitAttempt,getAttemptById,getAttemptByProblemId,getAllAttempts,importUserRecords};
