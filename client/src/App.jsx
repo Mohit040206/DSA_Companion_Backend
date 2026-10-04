@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './components/common/Toast';
 
 import Login from './pages/auth/Login';
@@ -21,6 +21,7 @@ import Revisions from './pages/Revisions';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import CompanyPrep from './pages/CompanyPrep';
 import NotFound from './pages/NotFound';
 
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -34,6 +35,15 @@ import './styles/tokens.css';
 import './styles/global.css';
 import './styles/components.css';
 import './styles/pages.css';
+
+function RequireAdmin({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
 
 export default function App() {
   return (
@@ -52,6 +62,7 @@ export default function App() {
 
               {/* Learner App Routes */}
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/company-prep" element={<CompanyPrep />} />
               <Route path="/problems" element={<Problems />} />
               <Route path="/problems/:id" element={<ProblemDetail />} />
               <Route path="/patterns" element={<Patterns />} />
@@ -66,14 +77,14 @@ export default function App() {
               <Route path="/settings" element={<Settings />} />
 
               {/* Admin Portal Routes */}
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/problems" element={<AdminProblems />} />
-              <Route path="/admin/problems/new" element={<AdminProblemForm />} />
-              <Route path="/admin/problems/edit/:id" element={<AdminProblemForm />} />
-              <Route path="/admin/bulk-upload" element={<AdminBulkUpload />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/users/:id" element={<AdminUserDetail />} />
+              <Route path="/admin" element={<RequireAdmin><Navigate to="/admin/dashboard" replace /></RequireAdmin>} />
+              <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+              <Route path="/admin/problems" element={<RequireAdmin><AdminProblems /></RequireAdmin>} />
+              <Route path="/admin/problems/new" element={<RequireAdmin><AdminProblemForm /></RequireAdmin>} />
+              <Route path="/admin/problems/edit/:id" element={<RequireAdmin><AdminProblemForm /></RequireAdmin>} />
+              <Route path="/admin/bulk-upload" element={<RequireAdmin><AdminBulkUpload /></RequireAdmin>} />
+              <Route path="/admin/users" element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
+              <Route path="/admin/users/:id" element={<RequireAdmin><AdminUserDetail /></RequireAdmin>} />
 
               {/* Fallback */}
               <Route path="*" element={<NotFound />} />

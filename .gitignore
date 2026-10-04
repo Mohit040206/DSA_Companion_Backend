@@ -154,3 +154,12 @@ node_modules/
 
 # OS specific files
 .DS_Store
+
+# Development & Seed Utility Scripts (Not needed in production)
+seed400Problems.js
+seedProblems.js
+fixProblemUrlsAndStatuses.js
+importUserHistory.js
+updateRichNotes.js
+HANDOFF.md
+INTERVIEW_COMPANION_MASTER_HANDOFF_UPDATED.md

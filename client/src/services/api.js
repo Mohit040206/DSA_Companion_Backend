@@ -10,13 +10,30 @@ const client = axios.create({
   }
 });
 
+// Request Interceptor — Attach token if available in localStorage
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('dsa_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  try {
+    const token = localStorage.getItem('dsa_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (_) {}
   return config;
 });
+
+// Response Interceptor — Handle 401 Unauthorized globally
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      try { localStorage.removeItem('dsa_token'); } catch (_) {}
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/')) {
+        window.location.href = '/auth/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // ──────────────────────────────────────────────
 // AUTH
@@ -24,28 +41,40 @@ client.interceptors.request.use((config) => {
 export const authAPI = {
   login: async (credentials) => {
     const res = await client.post('/auth/login', credentials);
-    if (res.data && res.data.token) {
-      localStorage.setItem('dsa_token', res.data.token);
+    if (res.data?.token) {
+      try { localStorage.setItem('dsa_token', res.data.token); } catch (_) {}
     }
     return res.data;
   },
 
   register: async (userData) => {
     const res = await client.post('/auth/register', userData);
-    if (res.data && res.data.token) {
-      localStorage.setItem('dsa_token', res.data.token);
+    if (res.data?.token) {
+      try { localStorage.setItem('dsa_token', res.data.token); } catch (_) {}
     }
     return res.data;
   },
 
   getProfile: async () => {
     const res = await client.get('/auth/me');
-    return res.data.user || res.data;
+    return res.data.data || res.data.user || res.data;
   },
 
   logout: async () => {
     try { await client.post('/auth/logout'); } catch (_) { /* ignore */ }
-    localStorage.removeItem('dsa_token');
+    try { localStorage.removeItem('dsa_token'); } catch (_) {}
+  },
+
+  changePassword: async ({ currentPassword, newPassword }) => {
+    const res = await client.post('/auth/change-password', { currentPassword, newPassword });
+    return res.data;
+  }
+};
+
+export const userAPI = {
+  updateProfile: async (profileData) => {
+    const res = await client.put('/user/profile', profileData);
+    return res.data.data || res.data;
   }
 };
 
@@ -266,3 +295,59 @@ export const adminAPI = {
     return res.data;
   }
 };
+
+// ──────────────────────────────────────────────
+// AI & MEMORY ENGINE
+// ──────────────────────────────────────────────
+export const aiAPI = {
+  saveOnboarding: async (onboardingData) => {
+    const res = await client.post('/ai/onboarding', onboardingData);
+    return res.data;
+  },
+
+  getRecommendations: async () => {
+    const res = await client.get('/ai/recommendations');
+    return res.data.data || res.data;
+  },
+
+  getMemory: async () => {
+    const res = await client.get('/ai/memory');
+    return res.data.data || res.data;
+  },
+
+  evaluateAttempt: async (attemptId) => {
+    const res = await client.post(`/ai/evaluate-attempt/${attemptId}`);
+    return res.data;
+  },
+
+  getEvaluation: async (attemptId) => {
+    const res = await client.get(`/ai/evaluation/${attemptId}`);
+    return res.data.data || res.data;
+  },
+
+  generateHint: async ({ problemId, code, language, hintLevel }) => {
+    const res = await client.post('/ai/generate-hint', { problemId, code, language, hintLevel });
+    return res.data.data || res.data;
+  }
+};
+
+// ──────────────────────────────────────────────
+// COMPANY PREPARATION ENGINE
+// ──────────────────────────────────────────────
+export const companyPrepAPI = {
+  getPlan: async () => {
+    const res = await client.get('/company-prep/plan');
+    return res.data.data || null;
+  },
+
+  createPlan: async ({ company, role, interviewDate }) => {
+    const res = await client.post('/company-prep/plan', { company, role, interviewDate });
+    return res.data.data || res.data;
+  },
+
+  refreshPlan: async () => {
+    const res = await client.post('/company-prep/refresh');
+    return res.data.data || res.data;
+  }
+};
+

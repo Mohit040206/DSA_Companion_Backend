@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../common/Toast';
+import OnboardingModal from '../modals/OnboardingModal';
 import {
   LayoutDashboard,
   Code2,
@@ -24,7 +25,8 @@ import {
   Shield,
   UploadCloud,
   Users,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Building2
 } from 'lucide-react';
 
 const NAV_PRIMARY = [
@@ -37,6 +39,7 @@ const NAV_PRIMARY = [
 ];
 
 const NAV_SECONDARY = [
+  { key: 'company-prep', label: 'Company Prep', icon: Building2, path: '/company-prep' },
   { key: 'interview', label: 'Interview Mode', icon: Target, path: '/interview-mode' },
   { key: 'import-records', label: 'Import Records', icon: FileSpreadsheet, path: '/import-records' },
 ];
@@ -60,10 +63,11 @@ const MOBILE_ITEMS = [
   { key: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
-export default function AppShell({ children, title = 'Dashboard', crumb = '' }) {
+export default function AppShell({ children, title = 'Dashboard', crumb = '', openOnboarding = false, setOpenOnboarding }) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('ic-sidebar-collapsed') === '1');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -75,6 +79,31 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
   useEffect(() => {
     localStorage.setItem('ic-sidebar-collapsed', collapsed ? '1' : '0');
   }, [collapsed]);
+
+  useEffect(() => {
+    if (user) {
+      const isCompleted = Boolean(
+        user.isOnboarded === true ||
+        user.learningProfile?.onboardingCompleted === true
+      );
+      if (!isCompleted) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (openOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, [openOnboarding]);
+
+  const handleCloseOnboarding = () => {
+    setShowOnboarding(false);
+    if (setOpenOnboarding) {
+      setOpenOnboarding(false);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -111,8 +140,31 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
         </button>
 
         <div className="sidebar-brand">
-          <div className="mark">IC</div>
-          <div className="name">DSA Tracker</div>
+          <img
+            src="/logo-mark.png"
+            alt="Ancora"
+            style={{
+              width: 34,
+              height: 34,
+              filter: 'drop-shadow(0 0 14px rgba(99, 102, 241, 0.55))',
+              flexShrink: 0,
+              objectFit: 'contain'
+            }}
+          />
+          <div
+            className="name"
+            style={{
+              fontWeight: 800,
+              fontSize: 21,
+              letterSpacing: '-0.5px',
+              background: 'linear-gradient(135deg, #818CF8 0%, #C084FC 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              display: 'inline-block'
+            }}
+          >
+            Ancora
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -146,20 +198,24 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
             );
           })}
 
-          <div className="sidebar-section-label">Admin</div>
-          {NAV_ADMIN.map(item => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.key}
-                to={item.path}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              >
-                <Icon size={18} />
-                <span className="label">{item.label}</span>
-              </NavLink>
-            );
-          })}
+          {user?.role === 'admin' && (
+            <>
+              <div className="sidebar-section-label">Admin</div>
+              {NAV_ADMIN.map(item => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.key}
+                    to={item.path}
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                  >
+                    <Icon size={18} />
+                    <span className="label">{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </>
+          )}
 
           <div className="sidebar-section-label">Account</div>
           {NAV_FOOT.map(item => {
@@ -178,10 +234,10 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
         </nav>
 
         <div className="sidebar-user">
-          <div className="avatar">{user?.initials || 'MG'}</div>
+          <div className="avatar">{user?.initials || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'MG')}</div>
           <div className="who">
-            <div className="name">{user?.first || 'Mohit'}</div>
-            <div className="role">{user?.role || 'Software Engineer'}</div>
+            <div className="name">{user?.name || user?.username || 'Engineer'}</div>
+            <div className="role">{user?.role === 'admin' ? 'Administrator' : (user?.targetRole || user?.currentCompany?.role || 'Software Engineer')}</div>
           </div>
         </div>
       </aside>
@@ -250,19 +306,21 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
 
               <div className={`dropdown ${dropdownOpen ? 'open' : ''}`}>
                 <div className="dropdown-head">
-                  <div className="avatar">{user?.initials || 'MG'}</div>
+                  <div className="avatar">{user?.initials || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'MG')}</div>
                   <div>
-                    <div className="name">{user?.name || 'Mohit Gupta'}</div>
-                    <div className="role">{user?.role || 'Software Engineer'}</div>
+                    <div className="name">{user?.name || user?.username || 'Engineer'}</div>
+                    <div className="role">{user?.role === 'admin' ? 'Administrator' : (user?.targetRole || user?.currentCompany?.role || 'Software Engineer')}</div>
                   </div>
                 </div>
                 <div className="dropdown-divider"></div>
                 <Link to="/profile" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                   <UserIcon size={15} /> Profile
                 </Link>
-                <Link to="/admin/dashboard" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                  <Shield size={15} /> Admin Portal
-                </Link>
+                {user?.role === 'admin' && (
+                  <Link to="/admin/dashboard" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                    <Shield size={15} /> Admin Portal
+                  </Link>
+                )}
                 <Link to="/settings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                   <Settings size={15} /> Settings
                 </Link>
@@ -300,6 +358,14 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '' }) 
           );
         })}
       </nav>
+
+      {/* Global Onboarding Modal for New / Non-Onboarded Users */}
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={handleCloseOnboarding}
+        onComplete={handleCloseOnboarding}
+        initialProfile={user?.learningProfile}
+      />
     </div>
   );
 }

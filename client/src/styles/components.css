@@ -156,17 +156,17 @@
 
 /* Modal */
 .modal-overlay{
-  position:fixed; inset:0; background:rgba(10,12,16,.5); backdrop-filter:blur(2px);
-  display:flex; align-items:center; justify-content:center; z-index:100;
+  position:fixed; inset:0; background:rgba(0,0,0,0.75);
+  display:flex; align-items:center; justify-content:center; z-index:9999;
   opacity:0; pointer-events:none; transition:opacity var(--dur-med) var(--ease);
 }
-.modal-overlay.open{ opacity:1; pointer-events:auto; }
-.modal{
-  background:var(--surface); border-radius:var(--r-lg); border:1px solid var(--border);
-  padding:26px; width:480px; max-width:92vw; box-shadow:var(--shadow-lg);
+.modal-overlay.open, .modal-overlay.show{ opacity:1; pointer-events:auto; }
+.modal, .modal-card{
+  background:var(--surface); color:var(--text); border-radius:var(--r-lg); border:1px solid var(--border);
+  padding:28px 32px; width:540px; max-width:92vw; box-shadow:var(--shadow-lg);
   transform:translateY(10px) scale(.97); transition:transform var(--dur-med) var(--ease);
 }
-.modal-overlay.open .modal{ transform:translateY(0) scale(1); }
+.modal-overlay.open .modal, .modal-overlay.show .modal, .modal-overlay.open .modal-card, .modal-overlay.show .modal-card{ transform:translateY(0) scale(1); }
 .modal h3{ font-size:17px; margin-bottom:8px; }
 .modal p{ font-size:13.5px; color:var(--text-secondary); line-height:1.55; margin-bottom:20px; }
 .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
