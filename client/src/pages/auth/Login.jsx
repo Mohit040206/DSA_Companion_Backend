@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowRight, Lock, Mail, Code, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState('mohit@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -122,20 +122,8 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="divider-label">OR CONTINUE WITH</div>
-
-        <div className="social-row">
-          <button className="btn-social" type="button" onClick={() => { login({ email, password }); navigate('/dashboard'); }}>
-            <Code size={16} /> Quick Demo Access
-          </button>
-        </div>
-
         <div className="auth-foot">
           Don't have an account? <Link to="/auth/register">Sign up</Link>
-        </div>
-
-        <div className="mock-note">
-          💡 Demo Mode Active: You can click Sign In with default credentials to enter the workspace.
         </div>
       </div>
     </div>

@@ -87,29 +87,32 @@ const problemSchema = new mongoose.Schema(
         type: Boolean,
         default: true
     },
-   prerequisites: [{
-    type: String,
-    trim: true
-}],
+    prerequisites: [{
+        type: String,
+        trim: true
+    }],
 
-learningObjectives: [{
-    type: String,
-    trim: true
-}],
+    learningObjectives: [{
+        type: String,
+        trim: true
+    }],
 
-order: {
-    type: Number
+    order: {
+        type: Number
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+    }
 },
-createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
-}
-
-},
-
 {
     timestamps: true
 });
+
+problemSchema.index({ difficulty: 1 });
+problemSchema.index({ platform: 1 });
+problemSchema.index({ patterns: 1 });
+problemSchema.index({ title: "text" });
 
 module.exports = mongoose.model("Problem", problemSchema);

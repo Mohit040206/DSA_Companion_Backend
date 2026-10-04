@@ -241,7 +241,16 @@ export default function Problems() {
               </tr>
             </thead>
             <tbody>
-              {paginatedProblems.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="6">
+                    <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                      <div className="spinner" style={{ margin: '0 auto 12px', width: '28px', height: '28px' }}></div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '13.5px' }}>Loading problems from database...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedProblems.length === 0 ? (
                 <tr>
                   <td colSpan="6">
                     <div className="state-block">

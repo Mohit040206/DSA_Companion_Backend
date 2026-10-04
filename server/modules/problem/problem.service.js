@@ -21,7 +21,7 @@ const getAllProblem = async (filters = {}) => {
         query.title = { $regex: filters.search, $options: "i" };
     }
 
-    return await Problem.find(query).populate("createdBy", "name username email");
+    return await Problem.find(query).select("-learningObjectives -prerequisites").lean();
 };
 
 const getProblemById = async (id) => {
