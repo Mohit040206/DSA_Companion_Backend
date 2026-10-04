@@ -1,34 +1,55 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
-import { attemptAPI, problemAPI } from '../services/api';
+import { attemptAPI, problemAPI, aiAPI } from '../services/api';
+import AIEvaluationCard from '../components/ai/AIEvaluationCard';
+import { useToast } from '../components/common/Toast';
 import { ChevronLeft, ArrowRight, Lightbulb, AlertOctagon, CheckCircle2, Clock } from 'lucide-react';
 
 export default function AttemptDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const [attempt, setAttempt] = useState(null);
   const [problem, setProblem] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadAttempt() {
-      try {
-        const att = await attemptAPI.getById(id);
-        if (att) {
-          setAttempt(att);
-          try {
-            const prob = await problemAPI.getById(att.problemId);
-            setProblem(prob);
-          } catch (_) { /* ignore problem fetch error */ }
-        }
-      } catch (err) {
-        setAttempt(null);
-      } finally {
-        setLoading(false);
+  const loadAttempt = async () => {
+    try {
+      const att = await attemptAPI.getById(id);
+      if (att) {
+        setAttempt(att);
+        try {
+          const prob = await problemAPI.getById(att.problemId);
+          setProblem(prob);
+        } catch (_) { /* ignore problem fetch error */ }
       }
+    } catch (err) {
+      setAttempt(null);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadAttempt();
   }, [id]);
+
+  const handleReevaluate = async (attId) => {
+    try {
+      const res = await aiAPI.evaluateAttempt(attId);
+      showToast('AI Evaluation completed!', 'success');
+      await loadAttempt();
+    } catch (err) {
+      showToast('AI Evaluation failed', 'error');
+    }
+  };
+
+  const handleRetry = (att, retryFocus) => {
+    const pId = att?.problemId?._id || att?.problemId;
+    showToast(`Retry attempt started — focus on: ${retryFocus || 'fixing identified issue'}`, 'info');
+    navigate(`/problems/${pId}?retryOf=${att._id}`);
+  };
 
   if (loading || !attempt) {
     return (
@@ -41,7 +62,7 @@ export default function AttemptDetail() {
   }
 
   return (
-    <AppShell title={`Attempt #${attempt.attemptNumber}`} crumb="Attempts">
+    <AppShell title={`Attempt #${attempt.attemptNumber || ''}`} crumb="Attempts">
       <div className="journal-shell enter">
         <div className="detail-header">
           <Link to="/attempts" className="breadcrumb-link">
@@ -49,7 +70,7 @@ export default function AttemptDetail() {
           </Link>
           <h1>{problem?.title || attempt.problemId}</h1>
           <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            Attempt #{attempt.attemptNumber} logged on {attempt.date} ({attempt.when || 'Recent'})
+            Logged on {attempt.date || (attempt.createdAt ? new Date(attempt.createdAt).toLocaleDateString() : 'Recent')}
           </div>
         </div>
 
@@ -67,13 +88,21 @@ export default function AttemptDetail() {
           </div>
           <div className="jm">
             <div className="label">DURATION</div>
-            <div className="val">{attempt.durationMin || 25} mins</div>
+            <div className="val">{attempt.durationMin || 20} mins</div>
           </div>
           <div className="jm">
             <div className="label">HINTS USED</div>
-            <div className="val">{attempt.hints || 0} hint(s)</div>
+            <div className="val">{attempt.hintsUsed || attempt.hints || 0} hint(s)</div>
           </div>
         </div>
+
+        {/* AI Evaluation Card */}
+        <AIEvaluationCard
+          evaluation={attempt.aiEvaluation}
+          attempt={attempt}
+          onRetry={handleRetry}
+          onReevaluate={handleReevaluate}
+        />
 
         {/* Journal Sections */}
         <div className="journal-section">

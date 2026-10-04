@@ -1,6 +1,7 @@
 const Attempt=require("./attempt.model")
 const Problem=require("../problem/problem.model")
 const Revision=require("../revision/revision.model")
+const evaluationService = require("../ai/evaluation.service")
 
 const createAttempt=async(problemId,userId)=>{
     if(!userId){
@@ -132,30 +133,38 @@ if (activeSession) {
         space:data.complexity?.space
     }
     attempt.language = data.language;
+    attempt.code = data.code || data.submittedCode || attempt.code;
+    if (data.retryOfAttemptId) {
+        attempt.retryOfAttemptId = data.retryOfAttemptId;
+    }
 
     attempt.reflection = data.reflection;
     attempt.reflectionNote = data.reflectionNote;
 
     attempt.notes = data.notes;
-
   
     attempt.completedAt = new Date();
 
-
     const revision = await Revision.findOne({
-    userId,
-    completedByAttemptId: attempt._id,
-    status: "Pending"
-});
+        userId,
+        completedByAttemptId: attempt._id,
+        status: "Pending"
+    });
 
-if (revision) {
-    revision.status = "Completed";
-    revision.completedAt = new Date();
+    if (revision) {
+        revision.status = "Completed";
+        revision.completedAt = new Date();
 
-    await revision.save();
-} 
+        await revision.save();
+    } 
 
+    // ALWAYS persist Attempt in MongoDB FIRST
     await attempt.save();
+
+    // Trigger non-blocking AI evaluation call asynchronously AFTER attempt save
+    evaluationService.evaluateAttempt(userId, attempt._id).catch(err => {
+        console.error("Non-blocking AI evaluation error for attempt", attempt._id, ":", err.message);
+    });
 
     return attempt;
 

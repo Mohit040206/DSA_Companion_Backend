@@ -124,13 +124,119 @@ const attemptSchema = new mongoose.Schema(
     type: String,
     trim: true
 },
+        code: {
+            type: String,
+            trim: true
+        },
+
+        retryOfAttemptId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Attempt"
+        },
+
         notes: {
             type: String,
             trim: true
         },
         completedAt: {
-    type: Date
-},
+            type: Date
+        },
+
+        // ===========================
+        // AI Static Evaluation Schema
+        // ===========================
+        aiEvaluation: {
+            status: {
+                type: String,
+                enum: ["NOT_REQUESTED", "PENDING", "COMPLETED", "FAILED"],
+                default: "NOT_REQUESTED"
+            },
+            evaluatedAt: {
+                type: Date
+            },
+            error: {
+                type: String
+            },
+            verdict: {
+                type: String,
+                enum: [
+                    "CORRECT",
+                    "MOSTLY_CORRECT",
+                    "CORRECT_BUT_INEFFICIENT",
+                    "NEEDS_ANOTHER_ATTEMPT",
+                    "INCORRECT",
+                    "INCONCLUSIVE"
+                ]
+            },
+            derivedApproach: {
+                type: String,
+                trim: true
+            },
+            derivedAlgorithm: {
+                type: String,
+                trim: true
+            },
+            derivedComplexity: {
+                time: { type: String, trim: true },
+                space: { type: String, trim: true }
+            },
+            approachCorrect: {
+                type: Boolean
+            },
+            codeCorrect: {
+                type: Boolean
+            },
+            complexityCorrect: {
+                type: Boolean
+            },
+            efficiency: {
+                type: String,
+                enum: ["EXCELLENT", "GOOD", "NEEDS_IMPROVEMENT", "POOR", "INCONCLUSIVE"]
+            },
+            issues: [
+                {
+                    type: {
+                        type: String,
+                        enum: [
+                            "EDGE_CASE",
+                            "SYNTAX_ERROR",
+                            "LOGIC_ERROR",
+                            "COMPLEXITY",
+                            "MISSING_BOUNDARY",
+                            "MISUNDERSTOOD_PROBLEM",
+                            "OTHER"
+                        ]
+                    },
+                    description: { type: String, trim: true },
+                    severity: {
+                        type: String,
+                        enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+                    }
+                }
+            ],
+            whatWasDoneWell: [
+                { type: String, trim: true }
+            ],
+            whatNeedsFixing: [
+                { type: String, trim: true }
+            ],
+            keyLearning: {
+                type: String,
+                trim: true
+            },
+            retryRecommended: {
+                type: Boolean,
+                default: false
+            },
+            retryFocus: {
+                type: String,
+                trim: true
+            },
+            confidenceAdjustment: {
+                type: String,
+                trim: true
+            }
+        }
     },
     {
         timestamps: true

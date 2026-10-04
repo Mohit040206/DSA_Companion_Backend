@@ -43,9 +43,10 @@ export default function Patterns() {
 
         <div className="pattern-grid">
           {patterns.map((pat) => {
-            const pct = Math.round((pat.solved / (pat.attempted || 1)) * 100);
+            const isUnexplored = pat.attempted === 0 || pat.status === 'Unexplored';
+            const pct = isUnexplored ? 0 : Math.round((pat.solved / (pat.attempted || 1)) * 100);
             const isStrong = pat.status === 'Strong';
-            const isAttention = pat.status === 'Needs attention';
+            const isAttention = pat.status === 'Needs attention' || pat.status === 'Needs Attention';
             return (
               <div
                 key={pat.id}
@@ -54,8 +55,8 @@ export default function Patterns() {
               >
                 <div className="pattern-card-top">
                   <h3>{pat.name}</h3>
-                  <span className={`badge ${isStrong ? 'badge-success' : isAttention ? 'badge-danger' : 'badge-warning'}`}>
-                    {pat.status}
+                  <span className={`badge ${isUnexplored ? 'badge-neutral' : isStrong ? 'badge-success' : isAttention ? 'badge-danger' : 'badge-warning'}`}>
+                    {isUnexplored ? 'Unexplored' : pat.status}
                   </span>
                 </div>
 

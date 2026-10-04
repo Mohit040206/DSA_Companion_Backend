@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
-import { problemAPI, attemptAPI, revisionAPI } from '../services/api';
+import { problemAPI, attemptAPI, revisionAPI, aiAPI } from '../services/api';
+import AIEvaluationCard from '../components/ai/AIEvaluationCard';
 import { useToast } from '../components/common/Toast';
 import {
   ChevronLeft,
@@ -18,6 +19,9 @@ import {
 
 export default function ProblemDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const initialRetryOf = searchParams.get('retryOf') || null;
+
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -26,6 +30,7 @@ export default function ProblemDetail() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('workspace'); // workspace | history
+  const [retryOfAttemptId, setRetryOfAttemptId] = useState(initialRetryOf);
 
   const [selectedLanguage, setSelectedLanguage] = useState('JavaScript');
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
@@ -35,9 +40,7 @@ export default function ProblemDetail() {
     hints: 0,
     durationMin: 20,
     language: 'JavaScript',
-    approach: '',
     keyInsight: '',
-    mistakes: '',
     reflectionNote: ''
   });
 
@@ -95,32 +98,60 @@ export default function ProblemDetail() {
     }
   };
 
+  const handleReevaluate = async (attId) => {
+    try {
+      showToast('Evaluating solution with AI...', 'info');
+      await aiAPI.evaluateAttempt(attId);
+      showToast('AI Evaluation completed!', 'success');
+      const updatedAtts = await attemptAPI.getByProblem(problem?._id || id);
+      setAttempts(Array.isArray(updatedAtts) ? updatedAtts : []);
+    } catch (err) {
+      showToast('AI Evaluation failed', 'error');
+    }
+  };
+
+  const handleRetry = (att, retryFocus) => {
+    setRetryOfAttemptId(att._id || att.id);
+    setActiveTab('workspace');
+    showToast(`Retry attempt started — focus on: ${retryFocus || 'fixing identified issue'}`, 'info');
+  };
+
   const handleSubmitAttempt = async (e) => {
     e.preventDefault();
     try {
-      const attId = attempts[0]?._id || attempts[0]?.id || 'a-new-' + Date.now();
-      await attemptAPI.submit(attId, {
-        problemId: id,
-        ...reflectionForm
-      });
-      // If low confidence or solved with hints, optionally queue revision
-      if (reflectionForm.confidence <= 2 || reflectionForm.outcome === 'Solved with hints') {
-        await revisionAPI.create({
-          problemId: id,
-          reason: 'Low confidence / needed hints',
-          focus: reflectionForm.keyInsight || 'Cold practice without opening solution'
-        });
-        showToast('Attempt logged and queued for spaced revision!', 'success');
-      } else {
-        showToast('Attempt logged successfully!', 'success');
+      let activeAtt = attempts.find(a => !a.completedAt);
+      let attId = activeAtt?._id || activeAtt?.id;
+      if (!attId) {
+        const startRes = await attemptAPI.start(problem?._id || id);
+        attId = startRes._id || startRes.id;
       }
 
+      const submitPayload = {
+        problemId: problem?._id || id,
+        ...reflectionForm,
+        code: code || '',
+        retryOfAttemptId: retryOfAttemptId || undefined
+      };
+
+      const submittedAtt = await attemptAPI.submit(attId, submitPayload);
+      showToast('Attempt saved to database! Triggering AI analysis...', 'success');
+
       setSubmitModalOpen(false);
-      // Reload attempts
-      const updatedAtts = await attemptAPI.getByProblem(id);
-      setAttempts(updatedAtts || []);
+      setRetryOfAttemptId(null);
+
+      // Trigger AI evaluation call
+      try {
+        await aiAPI.evaluateAttempt(submittedAtt._id || attId);
+      } catch (aiErr) {
+        console.warn('AI Evaluation trigger note:', aiErr.message);
+      }
+
+      // Refresh attempts list & switch to history tab
+      const updatedAtts = await attemptAPI.getByProblem(problem?._id || id);
+      setAttempts(Array.isArray(updatedAtts) ? updatedAtts : []);
+      setActiveTab('history');
     } catch (err) {
-      showToast('Failed to log attempt', 'error');
+      showToast(err.message || 'Failed to log attempt', 'error');
     }
   };
 
@@ -365,32 +396,44 @@ export default function ProblemDetail() {
                 <p>No logged attempts yet for this problem. Start a new attempt session above!</p>
               </div>
             ) : (
-              attempts.map((att) => {
+              attempts.map((att, index) => {
                 const isClean = att.outcome === 'Solved';
-                const isHints = att.outcome === 'Solved with hints';
+                const isHints = att.outcome === 'Solved with hints' || att.outcome === 'SolvedWithHints';
+                const attId = att._id || att.id || index;
                 return (
-                  <div key={att.id} className="attempt-record">
-                    <div className={`attempt-num ${isClean ? 'tone-success' : isHints ? 'tone-warning' : 'tone-danger'}`}>
-                      #{att.attemptNumber}
-                    </div>
-                    <div className="body">
-                      <div className="top">
-                        <div className="title">{att.outcome}</div>
-                        <div className="when">{att.date} ({att.when || 'Past'})</div>
+                  <div key={attId} style={{ marginBottom: '20px' }}>
+                    <div className="attempt-record">
+                      <div className={`attempt-num ${isClean ? 'tone-success' : isHints ? 'tone-warning' : 'tone-danger'}`}>
+                        #{att.attemptNumber || attempts.length - index}
                       </div>
-                      <div className="desc">
-                        {att.approach || att.algorithm || 'No approach notes provided.'}
-                      </div>
-                      {att.keyInsight && (
-                        <div style={{ fontSize: '12.5px', color: 'var(--success)', marginTop: '4px' }}>
-                          💡 <strong>Insight:</strong> {att.keyInsight}
+                      <div className="body">
+                        <div className="top">
+                          <div className="title">{att.outcome}</div>
+                          <div className="when">{att.date || (att.createdAt ? new Date(att.createdAt).toLocaleDateString() : 'Past')}</div>
                         </div>
-                      )}
-                      <div className="tags">
-                        <span className="badge badge-neutral">{att.durationMin || 25} mins</span>
-                        <span className="badge badge-neutral">{att.hints || 0} hints used</span>
-                        <span className="badge badge-accent">Confidence: {att.confidence || 3}/5</span>
+                        <div className="desc">
+                          {att.approach || att.algorithm || 'No approach notes provided.'}
+                        </div>
+                        {att.keyInsight && (
+                          <div style={{ fontSize: '12.5px', color: 'var(--success)', marginTop: '4px' }}>
+                            💡 <strong>Insight:</strong> {att.keyInsight}
+                          </div>
+                        )}
+                        <div className="tags">
+                          <span className="badge badge-neutral">{att.durationMin || 20} mins</span>
+                          <span className="badge badge-neutral">{att.hintsUsed || att.hints || 0} hints used</span>
+                          <span className="badge badge-accent">Confidence: {att.confidence || 3}/5 ⭐</span>
+                        </div>
                       </div>
+                    </div>
+
+                    <div style={{ marginTop: '10px', marginLeft: '36px' }}>
+                      <AIEvaluationCard
+                        evaluation={att.aiEvaluation}
+                        attempt={att}
+                        onRetry={handleRetry}
+                        onReevaluate={handleReevaluate}
+                      />
                     </div>
                   </div>
                 );
@@ -409,6 +452,11 @@ export default function ProblemDetail() {
           </div>
 
           <form onSubmit={handleSubmitAttempt}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', background: 'var(--surface-2)', padding: '8px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
+              <Clock size={14} style={{ color: 'var(--accent)' }} />
+              <span>Duration is automatically recorded from your active session timer.</span>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="field">
                 <label>Language Used</label>
@@ -441,31 +489,19 @@ export default function ProblemDetail() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="field">
-                <label>Confidence (1-5 ⭐)</label>
-                <select
-                  className="input"
-                  value={reflectionForm.confidence}
-                  onChange={(e) => setReflectionForm({ ...reflectionForm, confidence: parseInt(e.target.value) })}
-                >
-                  <option value={5}>5 - Mastery (Automatic)</option>
-                  <option value={4}>4 - High Confidence</option>
-                  <option value={3}>3 - Moderate (Needed effort)</option>
-                  <option value={2}>2 - Low Confidence</option>
-                  <option value={1}>1 - Complete Struggle</option>
-                </select>
-              </div>
-
-              <div className="field">
-                <label>Duration (Minutes)</label>
-                <input
-                  type="number"
-                  className="input"
-                  value={reflectionForm.durationMin}
-                  onChange={(e) => setReflectionForm({ ...reflectionForm, durationMin: parseInt(e.target.value) })}
-                />
-              </div>
+            <div className="field">
+              <label>Confidence (1-5 ⭐)</label>
+              <select
+                className="input"
+                value={reflectionForm.confidence}
+                onChange={(e) => setReflectionForm({ ...reflectionForm, confidence: parseInt(e.target.value) })}
+              >
+                <option value={5}>5 - Mastery (Automatic)</option>
+                <option value={4}>4 - High Confidence</option>
+                <option value={3}>3 - Moderate (Needed effort)</option>
+                <option value={2}>2 - Low Confidence</option>
+                <option value={1}>1 - Complete Struggle</option>
+              </select>
             </div>
 
             <div className="field">
@@ -476,17 +512,6 @@ export default function ProblemDetail() {
                 placeholder="e.g. Look up currentSum - k in prefix map instead of raw sum."
                 value={reflectionForm.keyInsight}
                 onChange={(e) => setReflectionForm({ ...reflectionForm, keyInsight: e.target.value })}
-              />
-            </div>
-
-            <div className="field">
-              <label>Mistakes / Edge Cases Caught</label>
-              <textarea
-                className="input"
-                rows="2"
-                placeholder="e.g. Forgot to seed prefix sum map with {0: 1}."
-                value={reflectionForm.mistakes}
-                onChange={(e) => setReflectionForm({ ...reflectionForm, mistakes: e.target.value })}
               />
             </div>
 

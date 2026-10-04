@@ -29,7 +29,8 @@ const revisionSchema = new mongoose.Schema(
         "SolvedWithExternalHelp",
         "CouldNotSolve",
         "NeedToRevisit",
-        "RepeatedMistakes"
+        "RepeatedMistakes",
+        "AIEvaluationRetry"
       ],
       required: true
     },

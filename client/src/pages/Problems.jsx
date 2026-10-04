@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
 import { problemAPI } from '../services/api';
 import { useToast } from '../components/common/Toast';
+import { useAuth } from '../context/AuthContext';
 import {
   Plus,
   Search,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 
 export default function Problems() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const searchParamVal = searchParams.get('search') || '';
@@ -160,9 +162,11 @@ export default function Problems() {
             <h1>DSA Problem Bank</h1>
             <p>Targeted problem list tagged by core algorithmic pattern and status.</p>
           </div>
-          <button className="btn btn-primary" onClick={() => setModalOpen(true)}>
-            <Plus size={16} /> Add Problem
-          </button>
+          {user?.role === 'admin' && (
+            <button className="btn btn-primary" onClick={() => setModalOpen(true)}>
+              <Plus size={16} /> Add Problem
+            </button>
+          )}
         </div>
 
         {/* Toolbar & Filters */}
@@ -341,8 +345,9 @@ export default function Problems() {
         </div>
       </div>
 
-      {/* Add Problem Modal Overlay */}
-      <div className={`modal-overlay ${modalOpen ? 'open' : ''}`} onClick={(e) => { if (e.target.classList.contains('modal-overlay')) setModalOpen(false); }}>
+      {/* Add Problem Modal Overlay (Admin Only) */}
+      {user?.role === 'admin' && modalOpen && (
+        <div className={`modal-overlay open`} onClick={(e) => { if (e.target.classList.contains('modal-overlay')) setModalOpen(false); }}>
         <div className="modal">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3>Add New DSA Problem</h3>
@@ -424,6 +429,7 @@ export default function Problems() {
           </form>
         </div>
       </div>
+      )}
     </AppShell>
   );
 }
