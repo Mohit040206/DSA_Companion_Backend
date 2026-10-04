@@ -125,8 +125,6 @@ const logout=async(req,res)=>{
     })
 }
 }
-
-}
 const changePassword = async (req, res) => {
     try {
         const userId = req.userId;
