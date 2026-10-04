@@ -7,6 +7,7 @@ const {
 const router=express.Router()
 
 router.get("/",authMiddleware,authorize(["user","admin"]),getAllAttempts)
+router.post("/start",authMiddleware,authorize(["user","admin"]),startAttempt)
 router.post("/import",authMiddleware,authorize(["user","admin"]),importUserRecords)
 // duplicate GET route removed
 router.post("/session/:attemptId/resume",authMiddleware,authorize(["user","admin"]),resumeAttempt)
