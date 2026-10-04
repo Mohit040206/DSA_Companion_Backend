@@ -9,6 +9,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const compression = require("compression");
 
 const connectDB = require("./config/db");
 const problemRoutes = require("./modules/problem/problem.route");
@@ -27,6 +28,7 @@ app.use(cors({
     origin: true,
     credentials: true
 }));
+app.use(compression());
 app.use(express.json());
 app.use(cookieParser());
 

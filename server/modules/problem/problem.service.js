@@ -21,7 +21,9 @@ const getAllProblem = async (filters = {}) => {
         query.title = { $regex: filters.search, $options: "i" };
     }
 
-    return await Problem.find(query).select("-learningObjectives -prerequisites").lean();
+    return await Problem.find(query)
+        .select("title difficulty platform patterns estimatedTime status url order")
+        .lean();
 };
 
 const getProblemById = async (id) => {

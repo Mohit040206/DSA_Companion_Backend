@@ -78,42 +78,85 @@ export const userAPI = {
   }
 };
 
+// In-Memory SWR Cache for sub-millisecond client-side navigations
+const apiCache = new Map();
+
+const fetchWithCache = async (key, fetcher, ttlMs = 5 * 60 * 1000) => {
+  const cached = apiCache.get(key);
+  const now = Date.now();
+
+  if (cached && (now - cached.timestamp < ttlMs)) {
+    return cached.data;
+  }
+
+  const data = await fetcher();
+  apiCache.set(key, { data, timestamp: now });
+  return data;
+};
+
+export const invalidateCache = (prefix) => {
+  if (!prefix) {
+    apiCache.clear();
+  } else {
+    for (const k of apiCache.keys()) {
+      if (k.startsWith(prefix)) apiCache.delete(k);
+    }
+  }
+};
+
 // ──────────────────────────────────────────────
 // PROBLEMS
 // ──────────────────────────────────────────────
 export const problemAPI = {
   getAll: async (params = {}) => {
-    const res = await client.get('/problem', { params });
-    // Backend returns { success, data: [...] }
-    return Array.isArray(res.data) ? res.data : (res.data.data || res.data.problems || []);
+    const key = `problems_${JSON.stringify(params)}`;
+    return fetchWithCache(key, async () => {
+      const res = await client.get('/problem', { params });
+      return Array.isArray(res.data) ? res.data : (res.data.data || res.data.problems || []);
+    }, 5 * 60 * 1000);
   },
 
   getById: async (id) => {
-    const res = await client.get(`/problem/${id}`);
-    return res.data.data || res.data.problem || res.data;
+    const key = `problem_detail_${id}`;
+    return fetchWithCache(key, async () => {
+      const res = await client.get(`/problem/${id}`);
+      return res.data.data || res.data.problem || res.data;
+    }, 5 * 60 * 1000);
   },
 
   create: async (problemData) => {
+    invalidateCache('problems');
+    invalidateCache('pattern_directory');
     const res = await client.post('/problem', problemData);
     return res.data.data || res.data;
   },
 
   update: async (id, updateData) => {
+    invalidateCache('problems');
+    invalidateCache(`problem_detail_${id}`);
+    invalidateCache('pattern_directory');
     const res = await client.put(`/problem/${id}`, updateData);
     return res.data.data || res.data;
   },
 
   delete: async (id) => {
+    invalidateCache('problems');
+    invalidateCache(`problem_detail_${id}`);
+    invalidateCache('pattern_directory');
     const res = await client.delete(`/problem/${id}`);
     return res.data;
   },
 
   bulkUpload: async (problemsArray) => {
+    invalidateCache('problems');
+    invalidateCache('pattern_directory');
     const res = await client.post('/problem/bulk', { problems: problemsArray });
     return res.data;
   },
 
   reseed: async () => {
+    invalidateCache('problems');
+    invalidateCache('pattern_directory');
     const res = await client.post('/problem/reseed');
     return res.data;
   }
@@ -214,49 +257,51 @@ export const revisionAPI = {
 // ──────────────────────────────────────────────
 export const patternAPI = {
   getAll: async () => {
-    try {
-      const problems = await problemAPI.getAll();
-      const map = {};
-      problems.forEach(p => {
-        (p.patterns || []).forEach(pat => {
-          const key = pat.toLowerCase().replace(/\s+/g, '-');
-          if (!map[key]) {
-            map[key] = {
-              id: key,
-              name: pat,
-              count: 0,
-              solved: 0,
-              attempted: 0,
-              revisions: 0,
-              avgConfidence: 4.0,
-              status: 'Developing'
-            };
-          }
-          map[key].count += 1;
-          if (p.status === 'Solved') {
-            map[key].solved += 1;
-            map[key].attempted += 1;
-          } else if (p.status === 'Needs Revision') {
-            map[key].revisions += 1;
-            map[key].attempted += 1;
-          } else if (p.status === 'In Progress') {
-            map[key].attempted += 1;
-          }
+    return fetchWithCache('pattern_directory', async () => {
+      try {
+        const problems = await problemAPI.getAll();
+        const map = {};
+        problems.forEach(p => {
+          (p.patterns || []).forEach(pat => {
+            const key = pat.toLowerCase().replace(/\s+/g, '-');
+            if (!map[key]) {
+              map[key] = {
+                id: key,
+                name: pat,
+                count: 0,
+                solved: 0,
+                attempted: 0,
+                revisions: 0,
+                avgConfidence: 4.0,
+                status: 'Developing'
+              };
+            }
+            map[key].count += 1;
+            if (p.status === 'Solved') {
+              map[key].solved += 1;
+              map[key].attempted += 1;
+            } else if (p.status === 'Needs Revision') {
+              map[key].revisions += 1;
+              map[key].attempted += 1;
+            } else if (p.status === 'In Progress') {
+              map[key].attempted += 1;
+            }
+          });
         });
-      });
 
-      // Compute status for each pattern
-      Object.values(map).forEach(pat => {
-        const ratio = pat.count > 0 ? pat.solved / pat.count : 0;
-        if (ratio >= 0.7) pat.status = 'Strong';
-        else if (pat.revisions > 0) pat.status = 'Needs attention';
-        else pat.status = 'Developing';
-      });
+        // Compute status for each pattern
+        Object.values(map).forEach(pat => {
+          const ratio = pat.count > 0 ? pat.solved / pat.count : 0;
+          if (ratio >= 0.7) pat.status = 'Strong';
+          else if (pat.revisions > 0) pat.status = 'Needs attention';
+          else pat.status = 'Developing';
+        });
 
-      return Object.values(map);
-    } catch {
-      return [];
-    }
+        return Object.values(map);
+      } catch {
+        return [];
+      }
+    }, 5 * 60 * 1000);
   }
 };
 

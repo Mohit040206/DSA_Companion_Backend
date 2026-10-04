@@ -36,18 +36,25 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [probs, revs, atts, aiRecs, mem] = await Promise.all([
+      // Step 1: Fetch fast core stats & problems in parallel
+      const [probs, revs, atts] = await Promise.all([
         problemAPI.getAll(),
         revisionAPI.getAll(),
-        attemptAPI.getAll(),
-        aiAPI.getRecommendations().catch(() => null),
-        aiAPI.getMemory().catch(() => null)
+        attemptAPI.getAll()
       ]);
       setProblems(Array.isArray(probs) ? probs : []);
       setRevisions(Array.isArray(revs) ? revs : []);
       setAttempts(Array.isArray(atts) ? atts : []);
-      setAiData(aiRecs);
-      setMemoryData(mem);
+      setLoading(false); // ⚡ Release initial loading state immediately
+
+      // Step 2: Fetch slower AI recommendations & Memory in background without blocking UI
+      Promise.all([
+        aiAPI.getRecommendations().catch(() => null),
+        aiAPI.getMemory().catch(() => null)
+      ]).then(([aiRecs, mem]) => {
+        if (aiRecs) setAiData(aiRecs);
+        if (mem) setMemoryData(mem);
+      });
 
       // Non-toxic background consistency milestone notification
       const uniqueDays = new Set(
@@ -62,7 +69,6 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error('Error loading dashboard data', err);
-    } finally {
       setLoading(false);
     }
   };
