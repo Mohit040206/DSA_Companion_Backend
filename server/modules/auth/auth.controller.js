@@ -30,6 +30,7 @@ const register=async(req,res)=>{
         
 
     }catch(err){
+        console.error(err.message)
         const statusCode= err.statusCode ||500;
         return res.status(statusCode).json({
          success:false,
@@ -125,4 +126,40 @@ const logout=async(req,res)=>{
 }
 }
 
-module.exports={register,login,profile,logout}
+}
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                code: 400,
+                message: "Current password and new password are required."
+            });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                code: 400,
+                message: "New password must be at least 6 characters long."
+            });
+        }
+        const result = await AuthService.changePassword(userId, currentPassword, newPassword);
+        return res.status(200).json({
+            success: true,
+            code: 200,
+            message: result.message
+        });
+    } catch (err) {
+        console.error("Error in changePassword:", err.message);
+        const statusCode = err.statusCode || 500;
+        return res.status(statusCode).json({
+            success: false,
+            code: statusCode,
+            message: err.message || "Failed to change password."
+        });
+    }
+};
+
+module.exports={register,login,profile,logout,changePassword}

@@ -3,12 +3,14 @@ const {
     getAllUsers,
     getUserById,
     updateUserStatus,
-    updateUserRole
+    updateUserRole,
+    updateProfile
 } = require("./user.controller");
 const { authMiddleware, authorize } = require("../../middleware/auth.middileware");
 
 const router = express.Router();
 
+router.put("/profile", authMiddleware, updateProfile);
 router.get("/", authMiddleware, authorize(["admin"]), getAllUsers);
 router.get("/:id", authMiddleware, authorize(["admin"]), getUserById);
 router.put("/:id/status", authMiddleware, authorize(["admin"]), updateUserStatus);

@@ -34,11 +34,32 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card enter">
         <div className="auth-brand">
-          <div className="mark">IC</div>
-          <div className="name">Interview Companion</div>
+          <img
+            src="/logo-mark.png"
+            alt="Ancora"
+            style={{
+              width: 42,
+              height: 42,
+              filter: 'drop-shadow(0 0 16px rgba(99, 102, 241, 0.65))',
+              objectFit: 'contain'
+            }}
+          />
+          <div
+            className="name"
+            style={{
+              fontWeight: 800,
+              fontSize: 22,
+              letterSpacing: '-0.5px',
+              background: 'linear-gradient(135deg, #818CF8 0%, #C084FC 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
+            Ancora
+          </div>
         </div>
-        <h1>Welcome back</h1>
-        <p className="sub">Sign in to track your DSA mastery and interview prep.</p>
+        <h1>Welcome back, Engineer</h1>
+        <p className="sub">They know your submissions. Ancora knows your journey.</p>
 
         {error && <div className="field-error" style={{ display: 'block', marginBottom: '16px' }}>{error}</div>}
 

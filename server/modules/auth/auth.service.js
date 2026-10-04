@@ -36,15 +36,18 @@ const registerUser=async({username,password,email,name})=>{
         expiresIn:"1d"
     }
 )
-        return{
-            user:{
-            Id:newUser._id,
-            name:newUser.name,
-            email:newUser.email,
-            username:newUser.username
+        return {
+            user: {
+                _id: newUser._id,
+                name: newUser.name,
+                email: newUser.email,
+                username: newUser.username,
+                role: newUser.role,
+                learningProfile: newUser.learningProfile,
+                isOnboarded: newUser.isOnboarded
             },
             token
-        }
+        };
 }
 
 const userLogin=async({username,email,password})=>{
@@ -66,31 +69,47 @@ const userLogin=async({username,email,password})=>{
             error.statusCode=401
             throw error
         }
-        const token =jwt.sign({userId:user._id,username:user.username,userRole:user.role},process.env.SECERATE_KEY,{expiresIn:"1d"})
-        return{
-            user:{
-                userId:user._id,
-                username:user.username,
-                email:user.email,
-                name:user.name,
-                role:user.role
-            },
+        const userObj = user.toObject();
+        delete userObj.password;
+
+        const token = jwt.sign({ userId: user._id, username: user.username, userRole: user.role }, process.env.SECERATE_KEY || process.env.JWT_SECRET || "defaultsecret", { expiresIn: "1d" });
+        return {
+            user: userObj,
             token
-        }
+        };
 }
 
 const getUserProfile=async(userId)=>{
-    const user =await User.findOne(userId);
+    const user = await User.findById(userId);
     if(!user){
         const error=new Error("User not found");
-        error.statusCode=400;
+        error.statusCode=404;
         throw error;
     }
-    return user
+    return user;
 }
 
-// const logout=()=>{
-//     return {message:"Logout successFully"
-// }}
+const changePassword = async (userId, currentPassword, newPassword) => {
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+        const error = new Error("User not found.");
+        error.statusCode = 404;
+        throw error;
+    }
 
-module.exports={registerUser,userLogin,getUserProfile}
+    if (user.password) {
+        const isValid = await encrypt.compare(currentPassword, user.password);
+        if (!isValid) {
+            const error = new Error("Incorrect current password.");
+            error.statusCode = 400;
+            throw error;
+        }
+    }
+
+    const saltRounds = 10;
+    user.password = await encrypt.hash(newPassword, saltRounds);
+    await user.save();
+    return { message: "Password changed successfully." };
+};
+
+module.exports={registerUser,userLogin,getUserProfile,changePassword}

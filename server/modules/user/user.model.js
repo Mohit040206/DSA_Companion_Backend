@@ -220,6 +220,31 @@ status:{
     default:"Active"
 },
 
+learningProfile: {
+    experienceLevel: {
+        type: String,
+        enum: ["Beginner", "Intermediate", "Advanced"],
+        default: "Beginner"
+    },
+    knownPatterns: [{
+        type: String,
+        trim: true
+    }],
+    dailyGoal: {
+        type: Number,
+        default: 2
+    },
+    preferredStrategy: {
+        type: String,
+        enum: ["depth-first", "breadth-first"],
+        default: "depth-first"
+    },
+    onboardingCompleted: {
+        type: Boolean,
+        default: false
+    }
+},
+
 },
 {
     timestamps: true

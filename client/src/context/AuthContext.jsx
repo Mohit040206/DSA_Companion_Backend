@@ -10,14 +10,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     async function loadUser() {
       try {
-        const token = localStorage.getItem('dsa_token');
-        if (token) {
-          const profile = await authAPI.getProfile();
-          setUser(profile || null);
-        }
+        const profile = await authAPI.getProfile();
+        setUser(profile || null);
       } catch (err) {
-        // Token invalid / expired — clear it
-        localStorage.removeItem('dsa_token');
+        // Cookie missing, invalid, or cleared — log out user
         setUser(null);
       } finally {
         setLoading(false);
@@ -29,16 +25,22 @@ export function AuthProvider({ children }) {
 
   const login = async (credentials) => {
     const res = await authAPI.login(credentials);
-    if (res.user) {
-      setUser(res.user);
+    try {
+      const fullProfile = await authAPI.getProfile();
+      setUser(fullProfile);
+    } catch (_) {
+      setUser(res.data || res.user || null);
     }
     return res;
   };
 
   const register = async (userData) => {
     const res = await authAPI.register(userData);
-    if (res.user) {
-      setUser(res.user);
+    try {
+      const fullProfile = await authAPI.getProfile();
+      setUser(fullProfile);
+    } catch (_) {
+      setUser(res.data || res.user || null);
     }
     return res;
   };

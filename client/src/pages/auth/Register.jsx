@@ -6,6 +6,7 @@ import { ArrowRight, User, Mail, Lock, Building, Briefcase, Eye, EyeOff } from '
 export default function Register() {
   const [formData, setFormData] = useState({
     name: 'Mohit Gupta',
+    username: 'mohit04',
     email: 'mohit@example.com',
     password: 'password123',
     role: 'Software Engineer',
@@ -18,7 +19,15 @@ export default function Register() {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      // Auto-generate username from name if username matches default
+      if (name === 'name' && (prev.username === 'mohit04' || prev.username === '')) {
+        updated.username = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -29,7 +38,7 @@ export default function Register() {
       await register(formData);
       navigate('/dashboard');
     } catch (err) {
-      setError('Registration failed. Try again.');
+      setError(err.response?.data?.message || err.message || 'Registration failed. Try again.');
     } finally {
       setLoading(false);
     }
@@ -37,28 +46,63 @@ export default function Register() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card enter" style={{ width: '460px' }}>
+      <div className="auth-card enter" style={{ width: '480px' }}>
         <div className="auth-brand">
-          <div className="mark">IC</div>
-          <div className="name">Interview Companion</div>
+          <img
+            src="/logo-mark.png"
+            alt="Ancora"
+            style={{
+              width: 42,
+              height: 42,
+              filter: 'drop-shadow(0 0 16px rgba(99, 102, 241, 0.65))',
+              objectFit: 'contain'
+            }}
+          />
+          <div
+            className="name"
+            style={{
+              fontWeight: 800,
+              fontSize: 22,
+              letterSpacing: '-0.5px',
+              background: 'linear-gradient(135deg, #818CF8 0%, #C084FC 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
+            Ancora
+          </div>
         </div>
-        <h1>Create your account</h1>
-        <p className="sub">Start tracking patterns, attempts, and spaced repetition goals.</p>
+        <h1>Create your Ancora account</h1>
+        <p className="sub">They know your submissions. Ancora knows your journey.</p>
 
         {error && <div className="field-error" style={{ display: 'block', marginBottom: '16px' }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
-          <div className="field">
-            <label>Full Name</label>
-            <input
-              type="text"
-              name="name"
-              className="input"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Mohit Gupta"
-              required
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="field">
+              <label>Full Name</label>
+              <input
+                type="text"
+                name="name"
+                className="input"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Mohit Gupta"
+                required
+              />
+            </div>
+            <div className="field">
+              <label>Username</label>
+              <input
+                type="text"
+                name="username"
+                className="input"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="mohit04"
+                required
+              />
+            </div>
           </div>
 
           <div className="field">
