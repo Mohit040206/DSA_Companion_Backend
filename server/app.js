@@ -35,6 +35,9 @@ connectDB();
 app.get("/", (req, res) => {
     res.send("APP is healthy");
 });
+app.get("/healthz", (req, res) => {
+    res.status(200).send("OK");
+});
 app.use("/api/auth", authRoutes);
 app.use("/api/problem", problemRoutes);
 app.use("/api/attempt", attemptRoutes);
