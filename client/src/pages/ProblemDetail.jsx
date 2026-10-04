@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ExternalLink,
   Play,
+  Pause,
   RotateCcw,
   CheckCircle2,
   AlertCircle,
@@ -44,6 +45,15 @@ export default function ProblemDetail() {
     reflectionNote: ''
   });
 
+  const refreshAttempts = async (probId) => {
+    try {
+      const atts = await attemptAPI.getByProblem(probId);
+      setAttempts(Array.isArray(atts) ? atts : []);
+    } catch (_) {
+      setAttempts([]);
+    }
+  };
+
   useEffect(() => {
     async function loadProblemData() {
       try {
@@ -51,7 +61,6 @@ export default function ProblemDetail() {
         try {
           prob = await problemAPI.getById(id);
         } catch (_) {
-          // Fallback: search all problems if getById fails (e.g. invalid ID, old mock ID, or slug)
           try {
             const allProbs = await problemAPI.getAll();
             if (Array.isArray(allProbs) && allProbs.length > 0) {
@@ -68,14 +77,7 @@ export default function ProblemDetail() {
           setProblem(prob);
           const fnName = prob?.title ? prob.title.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'solution';
           setCode(prob?.codeSnippet || `// Write your solution here\nfunction ${fnName}(nums) {\n  \n}`);
-
-          // Fetch attempts safely in isolated try/catch
-          try {
-            const atts = await attemptAPI.getByProblem(prob._id || id);
-            setAttempts(Array.isArray(atts) ? atts : []);
-          } catch (_) {
-            setAttempts([]);
-          }
+          await refreshAttempts(prob._id || id);
         } else {
           showToast('Problem not found', 'error');
         }
@@ -88,14 +90,40 @@ export default function ProblemDetail() {
     loadProblemData();
   }, [id]);
 
+  const activeAttempt = attempts.find(a => !a.completedAt);
+  const activeSessionRunning = activeAttempt && activeAttempt.sessions?.some(s => !s.endedAt);
+
   const handleStartAttempt = async () => {
     try {
-      const newAtt = await attemptAPI.start(problem?._id || id);
+      await attemptAPI.start(problem?._id || id);
       showToast('Attempt session started!', 'success');
+      await refreshAttempts(problem?._id || id);
       setActiveTab('workspace');
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Error starting attempt';
       showToast(msg, 'error');
+    }
+  };
+
+  const handlePauseSession = async () => {
+    if (!activeAttempt) return;
+    try {
+      await attemptAPI.endSession(activeAttempt._id || activeAttempt.id);
+      showToast('Session paused.', 'info');
+      await refreshAttempts(problem?._id || id);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error pausing session', 'error');
+    }
+  };
+
+  const handleResumeSession = async () => {
+    if (!activeAttempt) return;
+    try {
+      await attemptAPI.resumeSession(activeAttempt._id || activeAttempt.id);
+      showToast('Session resumed!', 'success');
+      await refreshAttempts(problem?._id || id);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error resuming session', 'error');
     }
   };
 
@@ -272,9 +300,19 @@ export default function ProblemDetail() {
           </div>
 
           <div className="action-row">
-            <button className="btn btn-primary" onClick={handleStartAttempt}>
-              <Play size={16} /> Start Attempt Session
-            </button>
+            {activeSessionRunning ? (
+              <button className="btn btn-warning" onClick={handlePauseSession} style={{ background: 'var(--warning)', color: '#000', gap: '6px', fontWeight: 700 }}>
+                <Pause size={16} /> Pause Session
+              </button>
+            ) : activeAttempt ? (
+              <button className="btn btn-primary" onClick={handleResumeSession} style={{ gap: '6px' }}>
+                <Play size={16} /> Resume Session
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={handleStartAttempt} style={{ gap: '6px' }}>
+                <Play size={16} /> Start Attempt Session
+              </button>
+            )}
             <a href={getProblemExternalUrl(problem)} target="_blank" rel="noreferrer" className="btn btn-secondary">
               Open Original Problem <ExternalLink size={15} />
             </a>
