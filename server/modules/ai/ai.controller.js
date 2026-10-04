@@ -1,7 +1,9 @@
 const User = require("../user/user.model");
+const Problem = require("../problem/problem.model");
 const recommendationService = require("./recommendation.service");
 const memoryService = require("./memory.service");
 const evaluationService = require("./evaluation.service");
+const aiProvider = require("./aiProvider.service");
 
 const saveOnboarding = async (req, res) => {
   try {
@@ -125,8 +127,7 @@ const getEvaluation = async (req, res) => {
       code: err.statusCode || 500
     });
   }
-const Problem = require("../problem/problem.model");
-const aiProvider = require("./aiProvider.service");
+};
 
 const generateHint = async (req, res) => {
   try {
