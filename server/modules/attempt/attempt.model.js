@@ -243,4 +243,7 @@ const attemptSchema = new mongoose.Schema(
     }
 );
 
+attemptSchema.index({ userId: 1, problemId: 1, createdAt: -1 });
+attemptSchema.index({ userId: 1, completedAt: 1 });
+
 module.exports = mongoose.model("Attempt", attemptSchema);

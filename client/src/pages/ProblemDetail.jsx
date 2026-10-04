@@ -94,12 +94,23 @@ export default function ProblemDetail() {
   const activeSessionRunning = activeAttempt && activeAttempt.sessions?.some(s => !s.endedAt);
 
   const handleStartAttempt = async () => {
+    const tempId = 'temp-' + Date.now();
+    const tempAttempt = {
+      _id: tempId,
+      problemId: problem?._id || id,
+      sessions: [{ startedAt: new Date().toISOString() }],
+      createdAt: new Date().toISOString()
+    };
+    setAttempts(prev => [tempAttempt, ...prev]);
+    setActiveTab('workspace');
+    showToast('Attempt session started!', 'success');
+
     try {
-      await attemptAPI.start(problem?._id || id);
-      showToast('Attempt session started!', 'success');
-      await refreshAttempts(problem?._id || id);
-      setActiveTab('workspace');
+      const res = await attemptAPI.start(problem?._id || id);
+      const realAtt = res.data || res;
+      setAttempts(prev => prev.map(a => a._id === tempId ? realAtt : a));
     } catch (err) {
+      setAttempts(prev => prev.filter(a => a._id !== tempId));
       const msg = err.response?.data?.message || err.message || 'Error starting attempt';
       showToast(msg, 'error');
     }
@@ -107,22 +118,56 @@ export default function ProblemDetail() {
 
   const handlePauseSession = async () => {
     if (!activeAttempt) return;
+    const attId = activeAttempt._id || activeAttempt.id;
+
+    const prevAttempts = [...attempts];
+    setAttempts(prev => prev.map(a => {
+      if ((a._id || a.id) === attId) {
+        return {
+          ...a,
+          sessions: (a.sessions || []).map(s => s.endedAt ? s : { ...s, endedAt: new Date().toISOString() })
+        };
+      }
+      return a;
+    }));
+    showToast('Session paused.', 'info');
+
     try {
-      await attemptAPI.endSession(activeAttempt._id || activeAttempt.id);
-      showToast('Session paused.', 'info');
-      await refreshAttempts(problem?._id || id);
+      const res = await attemptAPI.endSession(attId);
+      const updated = res.data || res;
+      if (updated && (updated._id || updated.id)) {
+        setAttempts(prev => prev.map(a => (a._id || a.id) === attId ? updated : a));
+      }
     } catch (err) {
+      setAttempts(prevAttempts);
       showToast(err.response?.data?.message || 'Error pausing session', 'error');
     }
   };
 
   const handleResumeSession = async () => {
     if (!activeAttempt) return;
+    const attId = activeAttempt._id || activeAttempt.id;
+
+    const prevAttempts = [...attempts];
+    setAttempts(prev => prev.map(a => {
+      if ((a._id || a.id) === attId) {
+        return {
+          ...a,
+          sessions: [...(a.sessions || []), { startedAt: new Date().toISOString() }]
+        };
+      }
+      return a;
+    }));
+    showToast('Session resumed!', 'success');
+
     try {
-      await attemptAPI.resumeSession(activeAttempt._id || activeAttempt.id);
-      showToast('Session resumed!', 'success');
-      await refreshAttempts(problem?._id || id);
+      const res = await attemptAPI.resumeSession(attId);
+      const updated = res.data || res;
+      if (updated && (updated._id || updated.id)) {
+        setAttempts(prev => prev.map(a => (a._id || a.id) === attId ? updated : a));
+      }
     } catch (err) {
+      setAttempts(prevAttempts);
       showToast(err.response?.data?.message || 'Error resuming session', 'error');
     }
   };

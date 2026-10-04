@@ -42,10 +42,11 @@ const resumeAttempt=async(req,res)=>{
                 })
             }
             const attempt= await attemptService.resumeAttempt(userId,attemptId);
-            return res.status(201).json({
+            return res.status(200).json({
                 success:true,
-                message:"Attempt session start successfully.",
-                code:201
+                message:"Attempt session resumed successfully.",
+                code:200,
+                data:attempt
             })
             
 
@@ -75,10 +76,11 @@ const endAttemptSession=async(req,res)=>{
                 })
             }
             const attempt= await attemptService.endAttemptSession(userId,attemptId);
-            return res.status(201).json({
+            return res.status(200).json({
                 success:true,
                 message:"Attempt session end successfully.",
-                code:201
+                code:200,
+                data:attempt
             })
 
     }catch(err){

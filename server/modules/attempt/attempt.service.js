@@ -46,59 +46,45 @@ if (isPresent) {
 
 const resumeAttempt=async(userId,attemptId)=>{
     const attempt=await Attempt.findOne({_id:attemptId,userId});
-        if(!attempt){
-            const error=new Error("Attempt not found.")
-            error.statusCode=404
-            throw error
-        }else if(attempt.completedAt!=null){
-            const error=new Error("Attempt already Submitted.")
-            error.statusCode=409;
-            throw error;
-        }
-         const problem=await Problem.findOne({_id:attempt.problemId})
-    if(!problem){
-        const error=new Error("Problem Not found.")
-       error.statusCode=404;
+    if(!attempt){
+        const error=new Error("Attempt not found.");
+        error.statusCode=404;
         throw error;
-        }
-        const isActiveSessions=await Attempt.findOne({_id:attemptId,sessions: { $elemMatch: { endedAt: { $exists: false } } }})
-        if(isActiveSessions){
-            const error=new Error("A session already exist for this attempt complete or end that to start a new one.");
-            error.statusCode=409;
-            throw error;
-        }
-        attempt.sessions.push({
-            startedAt:new Date()
-        })
-        await attempt.save();
+    } else if(attempt.completedAt!=null){
+        const error=new Error("Attempt already submitted.");
+        error.statusCode=409;
+        throw error;
+    }
+    const hasActiveSession = attempt.sessions && attempt.sessions.some(s => !s.endedAt);
+    if(hasActiveSession){
         return attempt;
-}
+    }
+    attempt.sessions.push({
+        startedAt: new Date()
+    });
+    await attempt.save();
+    return attempt;
+};
 
 const endAttemptSession=async(userId,attemptId)=>{
     const attempt=await Attempt.findOne({_id:attemptId,userId});
     if(!attempt){
-        const error=new Error("No attempt's Session found.")
+        const error=new Error("Attempt not found.");
         error.statusCode=404;
         throw error;
     }
-       if (attempt.completedAt) {
+    if (attempt.completedAt) {
         const error = new Error("Attempt already submitted.");
         error.statusCode = 409;
         throw error;
     }
-    
- const activeSession = attempt.sessions.find(session => !session.endedAt);
-
-    if (!activeSession) {
-        const error = new Error("No active session found to end for this attempt.");
-        error.statusCode = 409;
-        throw error;
+    const activeSession = attempt.sessions && attempt.sessions.find(session => !session.endedAt);
+    if (activeSession) {
+        activeSession.endedAt = new Date();
+        await attempt.save();
     }
-
-    activeSession.endedAt = new Date();
-    await attempt.save();
     return attempt;
-}
+};
 
 
 const submitAttempt=async(userId,attemptId,data)=>{
