@@ -75,6 +75,19 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '', op
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
+  const sidebarNavRef = useRef(null);
+
+  // Preserve sidebar scroll position across route changes & unmounts
+  React.useLayoutEffect(() => {
+    const savedScroll = sessionStorage.getItem('ic-sidebar-scroll');
+    if (savedScroll && sidebarNavRef.current) {
+      sidebarNavRef.current.scrollTop = Number(savedScroll);
+    }
+  }, [location.pathname]);
+
+  const handleSidebarScroll = (e) => {
+    sessionStorage.setItem('ic-sidebar-scroll', String(e.target.scrollTop));
+  };
 
   useEffect(() => {
     localStorage.setItem('ic-sidebar-collapsed', collapsed ? '1' : '0');
@@ -167,7 +180,7 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '', op
           </div>
         </div>
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" ref={sidebarNavRef} onScroll={handleSidebarScroll}>
           <div className="sidebar-section-label">Prepare</div>
           {NAV_PRIMARY.map(item => {
             const Icon = item.icon;

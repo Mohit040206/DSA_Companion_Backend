@@ -90,11 +90,12 @@ export default function ProblemDetail() {
 
   const handleStartAttempt = async () => {
     try {
-      const newAtt = await attemptAPI.start(id);
+      const newAtt = await attemptAPI.start(problem?._id || id);
       showToast('Attempt session started!', 'success');
       setActiveTab('workspace');
     } catch (err) {
-      showToast('Error starting attempt', 'error');
+      const msg = err.response?.data?.message || err.message || 'Error starting attempt';
+      showToast(msg, 'error');
     }
   };
 

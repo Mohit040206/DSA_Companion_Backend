@@ -21,10 +21,12 @@ const createAttempt=async(problemId,userId)=>{
 });
 
 if (isPresent) {
+    if (isPresent.problemId.toString() === problemId.toString()) {
+        return isPresent;
+    }
     const error = new Error(
-        "You already have an unfinished attempt. Complete it before starting another."
+        "You already have an active unfinished attempt on another problem. Please complete or submit it first."
     );
-
     error.statusCode = 409;
     throw error;
 }
@@ -181,24 +183,13 @@ const getAttemptById=async(userId,attemptId)=>{
 }
 
 const getAttemptByProblemId=async(userId,problemId)=>{
-    const attempts=await Attempt.find({userId,problemId}).sort({createdAt:-1})
-     if (attempts.length === 0) {
-    const error = new Error("No attempts found for this problem.");
-    error.statusCode = 404;
-    throw error;
-}
-return attempts;
-
+    const attempts=await Attempt.find({userId,problemId}).sort({createdAt:-1});
+    return attempts || [];
 }
 
 const getAllAttempts=async(userId)=>{
-    const attempt=await Attempt.find({userId});
-    if(!attempt){
-        const error=new Error("No attempts found.")
-        error.statusCode=404
-        throw error;
-    }
-    return attempt;
+    const attempts=await Attempt.find({userId}).sort({createdAt:-1});
+    return attempts || [];
 }
 
 const bulkImportAttempts = async (userId, records) => {
