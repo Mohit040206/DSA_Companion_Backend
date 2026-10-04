@@ -150,22 +150,5 @@ The frontend will be available at `http://localhost:5173` and the API at `http:/
 
 ---
 
-## 🌐 Production Hosting
-
-### Client Hosting (Vercel)
-1. Import repository on **Vercel**.
-2. Set Root Directory to `client`.
-3. Set Framework Preset to **Vite**.
-4. Environment Variable: `VITE_API_BASE_URL=https://your-backend.onrender.com/api`
-5. Deploy! (Vercel automatically uses `client/vercel.json` for single-page app rewrites).
-
-### Backend Hosting (Render / Railway)
-1. Create a Web Service pointing to repository root.
-2. Build Command: `npm install`
-3. Start Command: `npm start`
-4. Set Environment Variables (`MONGO_URI`, `SECERATE_KEY`, `GROQ_API_KEY`, `NODE_ENV=production`).
-
----
-
 ## 📄 License
 This project is licensed under the ISC License.
