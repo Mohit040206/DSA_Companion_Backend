@@ -103,6 +103,42 @@ export default function ProblemDetail() {
   const activeAttempt = attempts.find(a => !a.completedAt);
   const activeSessionRunning = activeAttempt && activeAttempt.sessions?.some(s => !s.endedAt);
 
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    const calculateSeconds = () => {
+      if (!activeAttempt || !activeAttempt.sessions || activeAttempt.sessions.length === 0) return 0;
+      let totalMs = 0;
+      const now = Date.now();
+      for (const s of activeAttempt.sessions) {
+        const start = s.startedAt ? new Date(s.startedAt).getTime() : 0;
+        if (!start) continue;
+        const end = s.endedAt ? new Date(s.endedAt).getTime() : now;
+        totalMs += Math.max(0, end - start);
+      }
+      return Math.floor(totalMs / 1000);
+    };
+
+    setElapsedSeconds(calculateSeconds());
+
+    if (activeSessionRunning) {
+      const interval = setInterval(() => {
+        setElapsedSeconds(calculateSeconds());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [activeAttempt, activeSessionRunning]);
+
+  const formatElapsed = (sec) => {
+    const mins = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const getCalculatedDuration = () => {
+    return Math.max(1, Math.round(elapsedSeconds / 60));
+  };
+
   const handleStartAttempt = async () => {
     const tempId = 'temp-' + Date.now();
     const tempAttempt = {
@@ -282,9 +318,14 @@ export default function ProblemDetail() {
         throw new Error('Unable to establish attempt session. Please try again.');
       }
 
+      const dur = reflectionForm.durationMin && reflectionForm.durationMin > 0
+        ? reflectionForm.durationMin
+        : getCalculatedDuration();
+
       const submitPayload = {
         problemId: problem?._id || id,
         ...reflectionForm,
+        durationMin: dur,
         hints: hintsRevealed,
         hintsUsed: hintsRevealed,
         code: code || '',
@@ -433,7 +474,7 @@ export default function ProblemDetail() {
             )}
           </div>
 
-          <div className="action-row">
+          <div className="action-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {activeSessionRunning ? (
               <button className="btn btn-warning" onClick={handlePauseSession} style={{ background: 'var(--warning)', color: '#000', gap: '6px', fontWeight: 700 }}>
                 <Pause size={16} /> Pause Session
@@ -447,6 +488,29 @@ export default function ProblemDetail() {
                 <Play size={16} /> Start Attempt Session
               </button>
             )}
+
+            {activeAttempt && (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 14px',
+                borderRadius: 'var(--r-sm)',
+                background: activeSessionRunning ? 'rgba(34, 197, 94, 0.1)' : 'var(--surface-2)',
+                border: `1px solid ${activeSessionRunning ? 'rgba(34, 197, 94, 0.3)' : 'var(--border)'}`,
+                color: activeSessionRunning ? 'var(--success)' : 'var(--text-muted)',
+                fontWeight: 600,
+                fontSize: '13px',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                <Clock size={15} />
+                <span>{formatElapsed(elapsedSeconds)}</span>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', opacity: 0.8 }}>
+                  {activeSessionRunning ? '● Live' : '❚❚ Paused'}
+                </span>
+              </div>
+            )}
+
             <a href={getProblemExternalUrl(problem)} target="_blank" rel="noreferrer" className="btn btn-secondary">
               Open Original Problem <ExternalLink size={15} />
             </a>
@@ -562,9 +626,11 @@ export default function ProblemDetail() {
                   <button
                     className="btn btn-sm btn-primary"
                     onClick={() => {
+                      const dur = getCalculatedDuration();
                       setReflectionForm(prev => ({
                         ...prev,
                         hints: hintsRevealed,
+                        durationMin: dur,
                         outcome: hintsRevealed > 0 && prev.outcome === 'Solved' ? 'SolvedWithHints' : prev.outcome
                       }));
                       setSubmitModalOpen(true);
@@ -710,7 +776,7 @@ export default function ProblemDetail() {
           <form onSubmit={handleSubmitAttempt}>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', background: 'var(--surface-2)', padding: '8px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
               <Clock size={14} style={{ color: 'var(--accent)' }} />
-              <span>Duration is automatically recorded from your active session timer.</span>
+              <span>Elapsed time calculated from active session timer. You can adjust it below.</span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -745,7 +811,7 @@ export default function ProblemDetail() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div className="field">
                 <label>Confidence (1-5 ⭐)</label>
                 <select
@@ -753,11 +819,11 @@ export default function ProblemDetail() {
                   value={reflectionForm.confidence}
                   onChange={(e) => setReflectionForm({ ...reflectionForm, confidence: parseInt(e.target.value) })}
                 >
-                  <option value={5}>5 - Mastery (Automatic)</option>
-                  <option value={4}>4 - High Confidence</option>
-                  <option value={3}>3 - Moderate (Needed effort)</option>
-                  <option value={2}>2 - Low Confidence</option>
-                  <option value={1}>1 - Complete Struggle</option>
+                  <option value={5}>5 - Mastery</option>
+                  <option value={4}>4 - High</option>
+                  <option value={3}>3 - Moderate</option>
+                  <option value={2}>2 - Low</option>
+                  <option value={1}>1 - Struggle</option>
                 </select>
               </div>
 
@@ -775,11 +841,23 @@ export default function ProblemDetail() {
                     });
                   }}
                 >
-                  <option value={0}>0 (Solved Independently)</option>
-                  <option value={1}>1 Hint Used</option>
-                  <option value={2}>2 Hints Used</option>
-                  <option value={3}>3 Hints Used</option>
+                  <option value={0}>0 (Clean)</option>
+                  <option value={1}>1 Hint</option>
+                  <option value={2}>2 Hints</option>
+                  <option value={3}>3 Hints</option>
                 </select>
+              </div>
+
+              <div className="field">
+                <label>Duration (mins)</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="input"
+                  value={reflectionForm.durationMin || 1}
+                  onChange={(e) => setReflectionForm({ ...reflectionForm, durationMin: Math.max(1, parseInt(e.target.value) || 1) })}
+                  title="Calculated from active timer sessions"
+                />
               </div>
             </div>
 

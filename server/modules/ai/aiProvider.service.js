@@ -148,7 +148,12 @@ const fallbackHeuristicEvaluation = (problem, attempt) => {
   const confidence = attempt.confidence || 3;
   const primaryPattern = (problem.patterns && problem.patterns[0]) ? problem.patterns[0] : "Algorithmic Pattern";
 
-  if (!code && outcome !== "Solved") {
+  const isCleanSolved = outcome === "Solved" || outcome === "SolvedClean";
+  const isSolvedWithHints = outcome === "SolvedWithHints" || outcome === "Solved with hints" || ((attempt.hintsUsed || 0) > 0 && outcome !== "CouldNotSolve" && outcome !== "NeedSolution");
+  const isSolved = isCleanSolved || isSolvedWithHints;
+  const isHighConf = (confidence >= 4);
+
+  if (!code && !isSolved) {
     return {
       verdict: "NEEDS_ANOTHER_ATTEMPT",
       derivedApproach: `${primaryPattern} Exploration`,
@@ -160,9 +165,9 @@ const fallbackHeuristicEvaluation = (problem, attempt) => {
       efficiency: "POOR",
       issues: [
         {
-          type: "MISUNDERSTOOD_PROBLEM",
+          type: "OTHER",
           description: "No complete code solution was logged for this attempt.",
-          severity: "HIGH"
+          severity: "MEDIUM"
         }
       ],
       whatWasDoneWell: ["Identified target problem area"],
@@ -174,28 +179,35 @@ const fallbackHeuristicEvaluation = (problem, attempt) => {
     };
   }
 
-  const isSolved = (outcome === "Solved");
-  const isHighConf = (confidence >= 4);
-
   return {
-    verdict: isSolved ? (isHighConf ? "CORRECT" : "MOSTLY_CORRECT") : "NEEDS_ANOTHER_ATTEMPT",
-    derivedApproach: `${primaryPattern} Optimized Solution`,
+    verdict: isSolved
+      ? (isCleanSolved && isHighConf ? "CORRECT" : "MOSTLY_CORRECT")
+      : "NEEDS_ANOTHER_ATTEMPT",
+    derivedApproach: `${primaryPattern} ${isSolved ? "Optimized Solution" : "Exploration"}`,
     derivedAlgorithm: `Standard ${primaryPattern}`,
     derivedComplexity: {
       time: problem.difficulty === "Easy" ? "O(N)" : "O(N log N)",
       space: "O(N)"
     },
-    approachCorrect: true,
+    approachCorrect: isSolved,
     codeCorrect: isSolved,
     complexityCorrect: true,
     efficiency: isHighConf ? "EXCELLENT" : "GOOD",
-    issues: isSolved ? [] : [
-      {
-        type: "EDGE_CASE",
-        description: "Verify boundary conditions (empty input, duplicates, extreme values).",
-        severity: "MEDIUM"
-      }
-    ],
+    issues: isSolved
+      ? (isSolvedWithHints ? [
+          {
+            type: "OTHER",
+            description: "Solution arrived at with progressive hints. Try solving a similar pattern variation independently to solidify mastery.",
+            severity: "LOW"
+          }
+        ] : [])
+      : [
+          {
+            type: "EDGE_CASE",
+            description: "Verify boundary conditions (empty input, duplicates, extreme values).",
+            severity: "MEDIUM"
+          }
+        ],
     whatWasDoneWell: [
       `Applied ${primaryPattern} approach`,
       "Clean solution structure"

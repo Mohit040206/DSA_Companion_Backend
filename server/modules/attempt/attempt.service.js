@@ -158,7 +158,20 @@ const submitAttempt=async(userId,attemptId,data)=>{
         attempt.retryOfAttemptId = data.retryOfAttemptId;
     }
 
-    attempt.durationMin = Number(data.durationMin) || 0;
+    const providedDuration = Number(data.durationMin);
+    if (!isNaN(providedDuration) && providedDuration > 0) {
+        attempt.durationMin = providedDuration;
+    } else {
+        let totalMs = 0;
+        const now = Date.now();
+        for (const s of (attempt.sessions || [])) {
+            const start = s.startedAt ? new Date(s.startedAt).getTime() : 0;
+            if (!start) continue;
+            const end = s.endedAt ? new Date(s.endedAt).getTime() : now;
+            totalMs += Math.max(0, end - start);
+        }
+        attempt.durationMin = Math.max(1, Math.round(totalMs / 60000));
+    }
     if (data.reflection && typeof data.reflection === 'string' && data.reflection.trim()) {
         attempt.reflection = data.reflection.trim();
     } else {
