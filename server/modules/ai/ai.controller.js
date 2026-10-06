@@ -136,7 +136,20 @@ const generateHint = async (req, res) => {
       return res.status(400).json({ success: false, message: "problemId is required." });
     }
 
-    const problem = await Problem.findById(problemId);
+    let problem = null;
+    const mongoose = require("mongoose");
+    if (mongoose.isValidObjectId(problemId)) {
+      problem = await Problem.findById(problemId);
+    }
+    if (!problem) {
+      problem = await Problem.findOne({
+        $or: [
+          { _id: problemId },
+          { id: problemId },
+          { title: new RegExp(`^${problemId.replace(/-/g, ' ')}$`, 'i') }
+        ]
+      }).catch(() => null);
+    }
     if (!problem) {
       return res.status(404).json({ success: false, message: "Problem not found." });
     }

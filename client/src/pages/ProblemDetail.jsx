@@ -15,7 +15,11 @@ import {
   Clock,
   Sparkles,
   Send,
-  X
+  X,
+  Lightbulb,
+  Brain,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
 export default function ProblemDetail() {
@@ -34,6 +38,12 @@ export default function ProblemDetail() {
   const [retryOfAttemptId, setRetryOfAttemptId] = useState(initialRetryOf);
 
   const [selectedLanguage, setSelectedLanguage] = useState('JavaScript');
+  const [hintsRevealed, setHintsRevealed] = useState(0);
+  const [revealedHintList, setRevealedHintList] = useState([]);
+  const [requestingHint, setRequestingHint] = useState(false);
+  const [showHintsDrawer, setShowHintsDrawer] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [reflectionForm, setReflectionForm] = useState({
     outcome: 'Solved',
@@ -184,6 +194,68 @@ export default function ProblemDetail() {
     }
   };
 
+  const getOfflineHint = (level) => {
+    if (!problem) return 'Review core data structure choices.';
+    const pat = (problem.patterns && problem.patterns[0]) || 'Core DSA';
+    const obj = problem.learningObjectives || 'Analyze constraints and write optimal code.';
+    const pre = (problem.prerequisites && problem.prerequisites[0]) || 'Check edge cases and boundary inputs.';
+
+    if (level === 1) {
+      return `💡 Pattern & Direction Hint: Consider applying the ${pat} pattern. What invariant holds as you traverse or divide the input?`;
+    } else if (level === 2) {
+      return `💡 Strategy & Invariant Hint: ${obj}`;
+    } else {
+      return `💡 Edge Cases & Logic Hint: ${pre}. Test with empty input, single element, or extreme values.`;
+    }
+  };
+
+  const handleRevealHint = async () => {
+    if (hintsRevealed >= 3) {
+      showToast('Maximum 3 hints reached for this session.', 'warning');
+      return;
+    }
+
+    const nextLevel = hintsRevealed + 1;
+    const isCodeUserWritten = code && code.length > 40 && !code.includes('Write your solution here');
+
+    try {
+      setRequestingHint(true);
+      showToast(`Generating progressive Hint ${nextLevel}...`, 'info');
+      let hintText = '';
+
+      if (isCodeUserWritten) {
+        try {
+          const res = await aiAPI.generateHint({
+            problemId: problem?._id || problem?.id || id,
+            code,
+            language: selectedLanguage,
+            hintLevel: nextLevel
+          });
+          hintText = res?.hint || res?.data?.hint || getOfflineHint(nextLevel);
+        } catch (aiErr) {
+          console.warn('AI Hint fallback:', aiErr.message);
+          hintText = getOfflineHint(nextLevel);
+        }
+      } else {
+        hintText = getOfflineHint(nextLevel);
+      }
+
+      setRevealedHintList(prev => [...prev, hintText]);
+      setHintsRevealed(nextLevel);
+      setShowHintsDrawer(true);
+      setReflectionForm(prev => ({
+        ...prev,
+        hints: nextLevel,
+        outcome: prev.outcome === 'Solved' ? 'SolvedWithHints' : prev.outcome
+      }));
+      showToast(`Hint ${nextLevel} revealed!`, 'success');
+    } catch (err) {
+      showToast('Could not load hint', 'error');
+    } finally {
+      setRequestingHint(false);
+    }
+  };
+
   const handleRetry = (att, retryFocus) => {
     setRetryOfAttemptId(att._id || att.id);
     setActiveTab('workspace');
@@ -192,21 +264,34 @@ export default function ProblemDetail() {
 
   const handleSubmitAttempt = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+
+    setSubmitting(true);
     try {
-      let activeAtt = attempts.find(a => !a.completedAt);
+      // Find a real existing active attempt (not an optimistic temp id)
+      let activeAtt = attempts.find(a => !a.completedAt && a._id && !String(a._id).startsWith('temp-'));
       let attId = activeAtt?._id || activeAtt?.id;
-      if (!attId) {
+
+      if (!attId || String(attId).startsWith('temp-')) {
+        console.log('[ProblemDetail:handleSubmitAttempt] No valid active attempt ID found; creating attempt session...');
         const startRes = await attemptAPI.start(problem?._id || id);
-        attId = startRes._id || startRes.id;
+        attId = startRes?._id || startRes?.id;
+      }
+
+      if (!attId) {
+        throw new Error('Unable to establish attempt session. Please try again.');
       }
 
       const submitPayload = {
         problemId: problem?._id || id,
         ...reflectionForm,
+        hints: hintsRevealed,
+        hintsUsed: hintsRevealed,
         code: code || '',
         retryOfAttemptId: retryOfAttemptId || undefined
       };
 
+      console.log(`[ProblemDetail:handleSubmitAttempt] Submitting attempt ${attId}...`, submitPayload);
       const submittedAtt = await attemptAPI.submit(attId, submitPayload);
       showToast('Attempt saved to database! Triggering AI analysis...', 'success');
 
@@ -225,7 +310,11 @@ export default function ProblemDetail() {
       setAttempts(Array.isArray(updatedAtts) ? updatedAtts : []);
       setActiveTab('history');
     } catch (err) {
-      showToast(err.message || 'Failed to log attempt', 'error');
+      console.error('[ProblemDetail:handleSubmitAttempt] Submission failed:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Failed to log attempt';
+      showToast(errMsg, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -416,7 +505,7 @@ export default function ProblemDetail() {
         {activeTab === 'workspace' && (
           <div className="enter">
             <div className="code-editor-wrap">
-              <div className="code-editor-header">
+              <div className="code-editor-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '12.5px' }}>
                   <label htmlFor="languageSelect" style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>Language:</label>
                   <select
@@ -451,13 +540,96 @@ export default function ProblemDetail() {
                      selectedLanguage === 'C++' ? 'solution.cpp' : 'solution.go'}
                   </span>
                 </div>
-                <button
-                  className="btn btn-sm btn-primary"
-                  onClick={() => setSubmitModalOpen(true)}
-                >
-                  <Send size={13} /> Log Reflection & Submit
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-secondary"
+                    onClick={handleRevealHint}
+                    disabled={hintsRevealed >= 3 || requestingHint}
+                    title="Request progressive AI hint for your solution"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: hintsRevealed >= 3 ? 'var(--text-muted)' : 'var(--warning)',
+                      borderColor: hintsRevealed >= 3 ? 'var(--border)' : 'rgba(234, 179, 8, 0.3)',
+                      background: hintsRevealed >= 3 ? 'transparent' : 'rgba(234, 179, 8, 0.08)'
+                    }}
+                  >
+                    <Lightbulb size={13} />
+                    {requestingHint ? 'Analyzing Code...' : `Ask for Hint (${3 - hintsRevealed} left)`}
+                  </button>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => {
+                      setReflectionForm(prev => ({
+                        ...prev,
+                        hints: hintsRevealed,
+                        outcome: hintsRevealed > 0 && prev.outcome === 'Solved' ? 'SolvedWithHints' : prev.outcome
+                      }));
+                      setSubmitModalOpen(true);
+                    }}
+                  >
+                    <Send size={13} /> Log Reflection & Submit
+                  </button>
+                </div>
               </div>
+
+              {/* Revealed Hints Box */}
+              {revealedHintList.length > 0 && (
+                <div style={{
+                  padding: '12px 16px',
+                  background: 'rgba(234, 179, 8, 0.07)',
+                  borderBottom: '1px solid var(--border)'
+                }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      marginBottom: showHintsDrawer ? '8px' : 0
+                    }}
+                    onClick={() => setShowHintsDrawer(!showHintsDrawer)}
+                  >
+                    <div style={{
+                      fontWeight: 600,
+                      fontSize: '12px',
+                      color: 'var(--warning)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      <Brain size={14} /> REVEALED HINTS FOR THIS PROBLEM ({revealedHintList.length} / 3)
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span>{showHintsDrawer ? 'Hide Hints' : 'Show Hints'}</span>
+                      {showHintsDrawer ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </div>
+                  </div>
+                  {showHintsDrawer && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {revealedHintList.map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            fontSize: '12.5px',
+                            color: 'var(--text-primary)',
+                            background: 'var(--surface-1)',
+                            padding: '8px 12px',
+                            borderRadius: 'var(--r-sm)',
+                            border: '1px solid var(--border)',
+                            lineHeight: 1.5
+                          }}
+                        >
+                          <strong style={{ color: 'var(--warning)', marginRight: '6px' }}>Hint {i + 1}:</strong>
+                          {h}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <textarea
                 className="code-textarea"
                 value={code}
@@ -566,26 +738,49 @@ export default function ProblemDetail() {
                   onChange={(e) => setReflectionForm({ ...reflectionForm, outcome: e.target.value })}
                 >
                   <option value="Solved">Solved Clean (No Hints)</option>
-                  <option value="Solved with hints">Solved With Hints</option>
-                  <option value="Could not solve">Could Not Solve</option>
-                  <option value="Paused">Paused / In Progress</option>
+                  <option value="SolvedWithHints">Solved With Hints</option>
+                  <option value="CouldNotSolve">Could Not Solve</option>
+                  <option value="NeedSolution">Need Solution / Looked Up</option>
                 </select>
               </div>
             </div>
 
-            <div className="field">
-              <label>Confidence (1-5 ⭐)</label>
-              <select
-                className="input"
-                value={reflectionForm.confidence}
-                onChange={(e) => setReflectionForm({ ...reflectionForm, confidence: parseInt(e.target.value) })}
-              >
-                <option value={5}>5 - Mastery (Automatic)</option>
-                <option value={4}>4 - High Confidence</option>
-                <option value={3}>3 - Moderate (Needed effort)</option>
-                <option value={2}>2 - Low Confidence</option>
-                <option value={1}>1 - Complete Struggle</option>
-              </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="field">
+                <label>Confidence (1-5 ⭐)</label>
+                <select
+                  className="input"
+                  value={reflectionForm.confidence}
+                  onChange={(e) => setReflectionForm({ ...reflectionForm, confidence: parseInt(e.target.value) })}
+                >
+                  <option value={5}>5 - Mastery (Automatic)</option>
+                  <option value={4}>4 - High Confidence</option>
+                  <option value={3}>3 - Moderate (Needed effort)</option>
+                  <option value={2}>2 - Low Confidence</option>
+                  <option value={1}>1 - Complete Struggle</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label>Hints Used</label>
+                <select
+                  className="input"
+                  value={reflectionForm.hints}
+                  onChange={(e) => {
+                    const h = parseInt(e.target.value);
+                    setReflectionForm({
+                      ...reflectionForm,
+                      hints: h,
+                      outcome: h > 0 && reflectionForm.outcome === 'Solved' ? 'SolvedWithHints' : reflectionForm.outcome
+                    });
+                  }}
+                >
+                  <option value={0}>0 (Solved Independently)</option>
+                  <option value={1}>1 Hint Used</option>
+                  <option value={2}>2 Hints Used</option>
+                  <option value={3}>3 Hints Used</option>
+                </select>
+              </div>
             </div>
 
             <div className="field">
@@ -600,11 +795,11 @@ export default function ProblemDetail() {
             </div>
 
             <div className="modal-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setSubmitModalOpen(false)}>
+              <button type="button" className="btn btn-ghost" onClick={() => setSubmitModalOpen(false)} disabled={submitting}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary">
-                Save & Update History
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Saving Reflection...' : 'Save & Update History'}
               </button>
             </div>
           </form>

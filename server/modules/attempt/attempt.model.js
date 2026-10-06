@@ -43,11 +43,23 @@ const attemptSchema = new mongoose.Schema(
             type: String,
             enum: [
                 "Solved",
+                "SolvedClean",
                 "SolvedWithHints",
+                "Solved with hints",
+                "Solved With Hints",
                 "SolvedWithExternalHelp",
+                "Solved with external help",
+                "Solved With External Help",
                 "NeedSolution",
-                "CouldNotSolve"
+                "Need solution",
+                "Need Solution",
+                "CouldNotSolve",
+                "Could not solve",
+                "Could Not Solve",
+                "Paused",
+                "In Progress"
             ],
+            default: "Solved"
         },
 
         hintsUsed: {
@@ -60,6 +72,11 @@ const attemptSchema = new mongoose.Schema(
             type: Number,
             min: 1,
             max: 5,
+        },
+
+        durationMin: {
+            type: Number,
+            default: 0
         },
 
         // ===========================

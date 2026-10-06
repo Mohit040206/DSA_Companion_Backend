@@ -1,7 +1,20 @@
+const mongoose = require("mongoose");
 const Attempt=require("./attempt.model")
 const Problem=require("../problem/problem.model")
 const Revision=require("../revision/revision.model")
 const evaluationService = require("../ai/evaluation.service")
+
+const normalizeOutcome = (raw) => {
+    if (!raw) return "Solved";
+    const str = String(raw).trim();
+    const lower = str.toLowerCase();
+    if (lower.includes("clean") || lower === "solved") return "Solved";
+    if (lower.includes("hint")) return "SolvedWithHints";
+    if (lower.includes("external") || lower.includes("help")) return "SolvedWithExternalHelp";
+    if (lower.includes("need") || lower.includes("solution")) return "NeedSolution";
+    if (lower.includes("couldnot") || lower.includes("could not") || lower.includes("unsolved")) return "CouldNotSolve";
+    return str;
+};
 
 const createAttempt=async(problemId,userId)=>{
     if(!userId){
@@ -88,74 +101,113 @@ const endAttemptSession=async(userId,attemptId)=>{
 
 
 const submitAttempt=async(userId,attemptId,data)=>{
-    const attempt=await Attempt.findOne({_id:attemptId,userId})
+    console.log(`[attempt.service:submitAttempt] Received request for userId=${userId}, attemptId=${attemptId}`);
 
-    if(!attempt){
-        const error=new Error("Attempt not found.")
-        error.statusCode=404
+    if(!userId){
+        const error=new Error("Authentication required.");
+        error.statusCode=401;
         throw error;
     }
-    if(attempt.completedAt!=null){
-        const error=new Error("Attempt already submitted.")
-        error.statusCode=409
-        throw error
-    }
-    const activeSession = attempt.sessions.find(
-    session => !session.endedAt
-);
 
-if (activeSession) {
-    activeSession.endedAt = new Date();
-}
-     
-    //  Attempt data
-    attempt.outcome=data.outcome;
-    attempt.hintsUsed=data.hintsUsed??0;
-    attempt.confidence=data.confidence;
-    attempt.approach=data.approach;
-    attempt.algorithm=data.algorithm;
-    attempt.keyInsight=data.keyInsight;
-    attempt.mistakes=data.mistakes;
-    attempt.complexity={
-        time:data.complexity?.time,
-        space:data.complexity?.space
+    if(!attemptId || !mongoose.isValidObjectId(attemptId)){
+        console.error(`[attempt.service:submitAttempt] Invalid attemptId format: "${attemptId}"`);
+        const error=new Error(`Invalid attempt ID format: "${attemptId}". Please restart the attempt session.`);
+        error.statusCode=400;
+        throw error;
     }
-    attempt.language = data.language;
-    attempt.code = data.code || data.submittedCode || attempt.code;
-    if (data.retryOfAttemptId) {
+
+    const attempt=await Attempt.findOne({_id:attemptId,userId});
+
+    if(!attempt){
+        console.warn(`[attempt.service:submitAttempt] Attempt not found for _id=${attemptId}, userId=${userId}`);
+        const error=new Error("Attempt not found in database.");
+        error.statusCode=404;
+        throw error;
+    }
+
+    if(attempt.completedAt!=null){
+        console.warn(`[attempt.service:submitAttempt] Attempt ${attemptId} was already submitted at ${attempt.completedAt}`);
+        const error=new Error("Attempt has already been submitted.");
+        error.statusCode=409;
+        throw error;
+    }
+
+    const activeSession = attempt.sessions && attempt.sessions.find(session => !session.endedAt);
+    if (activeSession) {
+        activeSession.endedAt = new Date();
+    }
+     
+    // Normalize and assign Attempt data
+    attempt.outcome = normalizeOutcome(data.outcome);
+    attempt.hintsUsed = Number(data.hintsUsed ?? data.hints ?? 0) || 0;
+    attempt.confidence = Number(data.confidence) || 3;
+    if (attempt.confidence < 1) attempt.confidence = 1;
+    if (attempt.confidence > 5) attempt.confidence = 5;
+
+    attempt.approach = data.approach;
+    attempt.algorithm = data.algorithm;
+    attempt.keyInsight = data.keyInsight;
+    attempt.mistakes = Array.isArray(data.mistakes) ? data.mistakes : [];
+    attempt.complexity = {
+        time: data.complexity?.time || "",
+        space: data.complexity?.space || ""
+    };
+    attempt.language = data.language || "JavaScript";
+    attempt.code = data.code || data.submittedCode || attempt.code || "";
+    if (data.retryOfAttemptId && mongoose.isValidObjectId(data.retryOfAttemptId)) {
         attempt.retryOfAttemptId = data.retryOfAttemptId;
     }
 
-    attempt.reflection = data.reflection;
-    attempt.reflectionNote = data.reflectionNote;
-
+    attempt.durationMin = Number(data.durationMin) || 0;
+    if (data.reflection && typeof data.reflection === 'string' && data.reflection.trim()) {
+        attempt.reflection = data.reflection.trim();
+    } else {
+        attempt.reflection = undefined;
+    }
+    attempt.reflectionNote = data.reflectionNote || "";
     attempt.notes = data.notes;
-  
     attempt.completedAt = new Date();
 
-    const revision = await Revision.findOne({
-        userId,
-        completedByAttemptId: attempt._id,
-        status: "Pending"
-    });
+    console.log(`[attempt.service:submitAttempt] Attempt payload ready. outcome="${attempt.outcome}", hintsUsed=${attempt.hintsUsed}, confidence=${attempt.confidence}`);
 
-    if (revision) {
-        revision.status = "Completed";
-        revision.completedAt = new Date();
+    // Update any pending revision for this problem safely
+    try {
+        const revision = await Revision.findOne({
+            userId,
+            problemId: attempt.problemId,
+            status: "Pending"
+        });
 
-        await revision.save();
-    } 
+        if (revision) {
+            revision.status = "Completed";
+            revision.completedAt = new Date();
+            revision.completedByAttemptId = attempt._id;
+            await revision.save();
+            console.log(`[attempt.service:submitAttempt] Completed pending revision ${revision._id}`);
+        }
+    } catch (revErr) {
+        console.warn(`[attempt.service:submitAttempt] Non-fatal revision update warning:`, revErr.message);
+    }
 
     // ALWAYS persist Attempt in MongoDB FIRST
-    await attempt.save();
+    try {
+        await attempt.save();
+        console.log(`[attempt.service:submitAttempt] Successfully saved attempt ${attempt._id}`);
+    } catch (saveErr) {
+        console.error(`[attempt.service:submitAttempt] Mongoose save error for attempt ${attemptId}:`, saveErr.message);
+        if (saveErr.errors) {
+            console.error(`[attempt.service:submitAttempt] Validation details:`, JSON.stringify(saveErr.errors, null, 2));
+        }
+        saveErr.statusCode = saveErr.name === 'ValidationError' ? 400 : 500;
+        throw saveErr;
+    }
 
     // Trigger non-blocking AI evaluation call asynchronously AFTER attempt save
     evaluationService.evaluateAttempt(userId, attempt._id).catch(err => {
-        console.error("Non-blocking AI evaluation error for attempt", attempt._id, ":", err.message);
+        console.error("[attempt.service:submitAttempt] Non-blocking AI evaluation notice for attempt", attempt._id, ":", err.message);
     });
 
     return attempt;
-
 }
 
 const getAttemptById=async(userId,attemptId)=>{
