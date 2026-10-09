@@ -68,6 +68,16 @@ export const authAPI = {
   changePassword: async ({ currentPassword, newPassword }) => {
     const res = await client.post('/auth/change-password', { currentPassword, newPassword });
     return res.data;
+  },
+
+  forgotPassword: async (email) => {
+    const res = await client.post('/auth/forgot-password', { email });
+    return res.data;
+  },
+
+  resetPassword: async ({ email, token, newPassword }) => {
+    const res = await client.post('/auth/reset-password', { email, token, newPassword });
+    return res.data;
   }
 };
 
@@ -78,30 +88,13 @@ export const userAPI = {
   }
 };
 
-// In-Memory SWR Cache for sub-millisecond client-side navigations
-const apiCache = new Map();
-
-const fetchWithCache = async (key, fetcher, ttlMs = 5 * 60 * 1000) => {
-  const cached = apiCache.get(key);
-  const now = Date.now();
-
-  if (cached && (now - cached.timestamp < ttlMs)) {
-    return cached.data;
-  }
-
-  const data = await fetcher();
-  apiCache.set(key, { data, timestamp: now });
-  return data;
+// Browser caching removed per user request: data is always fetched fresh now that server-side pagination is active
+const fetchWithCache = async (_key, fetcher) => {
+  return await fetcher();
 };
 
-export const invalidateCache = (prefix) => {
-  if (!prefix) {
-    apiCache.clear();
-  } else {
-    for (const k of apiCache.keys()) {
-      if (k.startsWith(prefix)) apiCache.delete(k);
-    }
-  }
+export const invalidateCache = () => {
+  // No-op: client cache disabled
 };
 
 // ──────────────────────────────────────────────
@@ -112,8 +105,15 @@ export const problemAPI = {
     const key = `problems_${JSON.stringify(params)}`;
     return fetchWithCache(key, async () => {
       const res = await client.get('/problem', { params });
-      return Array.isArray(res.data) ? res.data : (res.data.data || res.data.problems || []);
-    }, 5 * 60 * 1000);
+      const d = res.data;
+      const items = Array.isArray(d) ? d : (d.data || d.problems || []);
+      if (d?.pagination) {
+        items.pagination = d.pagination;
+        items.total = d.pagination.total;
+        items.totalPages = d.pagination.totalPages;
+      }
+      return items;
+    }, 2 * 60 * 1000);
   },
 
   getById: async (id) => {
@@ -191,14 +191,22 @@ export const attemptAPI = {
     return [];
   },
 
-  getAll: async () => {
-    const res = await client.get('/attempt');
+  getAll: async (params = {}) => {
+    const res = await client.get('/attempt', { params });
     const d = res.data;
-    if (Array.isArray(d)) return d;
-    if (Array.isArray(d?.data)) return d.data;
-    if (Array.isArray(d?.data?.attempts)) return d.data.attempts;
-    if (Array.isArray(d?.attempts)) return d.attempts;
-    return [];
+    const items = Array.isArray(d)
+      ? d
+      : (Array.isArray(d?.data)
+          ? d.data
+          : (Array.isArray(d?.data?.attempts)
+              ? d.data.attempts
+              : (Array.isArray(d?.attempts) ? d.attempts : [])));
+    if (d?.pagination) {
+      items.pagination = d.pagination;
+      items.total = d.pagination.total;
+      items.totalPages = d.pagination.totalPages;
+    }
+    return items;
   },
 
   resumeSession: async (attemptId) => {
@@ -221,14 +229,22 @@ export const attemptAPI = {
 // REVISIONS
 // ──────────────────────────────────────────────
 export const revisionAPI = {
-  getAll: async () => {
-    const res = await client.get('/revision');
+  getAll: async (params = {}) => {
+    const res = await client.get('/revision', { params });
     const d = res.data;
-    if (Array.isArray(d)) return d;
-    if (Array.isArray(d?.data)) return d.data;
-    if (Array.isArray(d?.data?.revisions)) return d.data.revisions;
-    if (Array.isArray(d?.revisions)) return d.revisions;
-    return [];
+    const items = Array.isArray(d)
+      ? d
+      : (Array.isArray(d?.data)
+          ? d.data
+          : (Array.isArray(d?.data?.revisions)
+              ? d.data.revisions
+              : (Array.isArray(d?.revisions) ? d.revisions : [])));
+    if (d?.pagination) {
+      items.pagination = d.pagination;
+      items.total = d.pagination.total;
+      items.totalPages = d.pagination.totalPages;
+    }
+    return items;
   },
 
   getById: async (revisionId) => {
@@ -259,7 +275,7 @@ export const patternAPI = {
   getAll: async () => {
     return fetchWithCache('pattern_directory', async () => {
       try {
-        const problems = await problemAPI.getAll();
+        const problems = await problemAPI.getAll({ all: true });
         const map = {};
         problems.forEach(p => {
           (p.patterns || []).forEach(pat => {
@@ -302,6 +318,20 @@ export const patternAPI = {
         return [];
       }
     }, 5 * 60 * 1000);
+  },
+
+  getDeepDive: async (nameOrSlug) => {
+    try {
+      const res = await client.get(`/pattern/${encodeURIComponent(nameOrSlug)}`);
+      return res.data?.data || res.data;
+    } catch (err) {
+      return null;
+    }
+  },
+
+  create: async (patternData) => {
+    const res = await client.post('/pattern', patternData);
+    return res.data?.data || res.data;
   }
 };
 
@@ -327,7 +357,13 @@ export const adminAPI = {
   getUsers: async (filters = {}) => {
     const res = await client.get('/user', { params: filters });
     const d = res.data;
-    return Array.isArray(d) ? d : (d.data || d.users || []);
+    const items = Array.isArray(d) ? d : (d.data || d.users || []);
+    if (d?.pagination) {
+      items.pagination = d.pagination;
+      items.total = d.pagination.total;
+      items.totalPages = d.pagination.totalPages;
+    }
+    return items;
   },
 
   getUserById: async (id) => {

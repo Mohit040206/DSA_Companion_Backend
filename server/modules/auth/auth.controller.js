@@ -160,4 +160,53 @@ const changePassword = async (req, res) => {
     }
 };
 
-module.exports={register,login,profile,logout,changePassword}
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const originUrl = req.headers.origin || req.headers.referer;
+        const result = await AuthService.forgotPassword(email, originUrl);
+        return res.status(200).json({
+            success: true,
+            code: 200,
+            message: result.message
+        });
+    } catch (err) {
+        console.error("Error in forgotPassword:", err.message);
+        const statusCode = err.statusCode || 500;
+        return res.status(statusCode).json({
+            success: false,
+            code: statusCode,
+            message: err.message || "Failed to process forgot password request."
+        });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { email, token, newPassword } = req.body;
+        const result = await AuthService.resetPassword(email, token, newPassword);
+        return res.status(200).json({
+            success: true,
+            code: 200,
+            message: result.message
+        });
+    } catch (err) {
+        console.error("Error in resetPassword:", err.message);
+        const statusCode = err.statusCode || 500;
+        return res.status(statusCode).json({
+            success: false,
+            code: statusCode,
+            message: err.message || "Failed to reset password."
+        });
+    }
+};
+
+module.exports = {
+    register,
+    login,
+    profile,
+    logout,
+    changePassword,
+    forgotPassword,
+    resetPassword
+};

@@ -1,22 +1,61 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
+import AuthBackground from '../../components/auth/AuthBackground';
+
+import { authAPI } from '../../services/api';
+import { useToast } from '../../components/common/Toast';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const { showToast } = useToast();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email) setSent(true);
+    if (!email) return;
+
+    setLoading(true);
+    try {
+      await authAPI.forgotPassword(email);
+      setSent(true);
+      showToast('Password reset link sent to your email!', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to send reset link. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="auth-page">
+      <AuthBackground />
       <div className="auth-card enter">
         <div className="auth-brand">
-          <div className="mark">IC</div>
-          <div className="name">Interview Companion</div>
+          <img
+            src="/logo-mark.png"
+            alt="Ancora"
+            style={{
+              width: 42,
+              height: 42,
+              filter: 'drop-shadow(0 0 16px rgba(99, 102, 241, 0.65))',
+              objectFit: 'contain'
+            }}
+          />
+          <div
+            className="name"
+            style={{
+              fontWeight: 800,
+              fontSize: 22,
+              letterSpacing: '-0.5px',
+              background: 'linear-gradient(135deg, #818CF8 0%, #C084FC 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
+            Ancora
+          </div>
         </div>
         <h1>Reset Password</h1>
         <p className="sub">Enter your email and we'll send password reset instructions.</p>
@@ -46,8 +85,8 @@ export default function ForgotPassword() {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary btn-block">
-              Send Reset Link <Send size={15} />
+            <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+              {loading ? 'Sending Instructions...' : 'Send Reset Link'} {!loading && <Send size={15} />}
             </button>
           </form>
         )}

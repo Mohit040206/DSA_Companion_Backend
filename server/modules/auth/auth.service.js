@@ -112,4 +112,84 @@ const changePassword = async (userId, currentPassword, newPassword) => {
     return { message: "Password changed successfully." };
 };
 
-module.exports={registerUser,userLogin,getUserProfile,changePassword}
+const crypto = require("crypto");
+const emailService = require("./email.service");
+
+const forgotPassword = async (email, originUrl) => {
+    if (!email) {
+        const error = new Error("Email is required.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+        // Return generic success to prevent email enumeration
+        return { message: "If an account with that email exists, password reset instructions have been sent." };
+    }
+
+    // Generate secure random token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    // Token expires in 1 hour
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 3600000;
+    await user.save();
+
+    const baseUrl = originUrl || process.env.CLIENT_URL || "http://localhost:5173";
+    const resetUrl = `${baseUrl.replace(/\/$/, '')}/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+
+    try {
+        await emailService.sendPasswordResetEmail(user.email, resetUrl, user.name || user.username);
+    } catch (mailErr) {
+        console.error("[auth.service:forgotPassword] Error sending reset email:", mailErr.message);
+    }
+
+    return { message: "If an account with that email exists, password reset instructions have been sent." };
+};
+
+const resetPassword = async (email, token, newPassword) => {
+    if (!email || !token || !newPassword) {
+        const error = new Error("Email, reset token, and new password are all required.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (newPassword.length < 6) {
+        const error = new Error("New password must be at least 6 characters long.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+        email: email.toLowerCase().trim(),
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: { $gt: Date.now() }
+    }).select("+password");
+
+    if (!user) {
+        const error = new Error("Password reset link is invalid or has expired. Please request a new one.");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const saltRounds = 10;
+    user.password = await encrypt.hash(newPassword, saltRounds);
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    return { message: "Password reset successfully! You can now log in with your new password." };
+};
+
+module.exports = {
+    registerUser,
+    userLogin,
+    getUserProfile,
+    changePassword,
+    forgotPassword,
+    resetPassword
+};
