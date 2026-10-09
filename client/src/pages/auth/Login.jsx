@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import AuthBackground from '../../components/auth/AuthBackground';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -32,6 +33,7 @@ export default function Login() {
 
   return (
     <div className="auth-page">
+      <AuthBackground />
       <div className="auth-card enter">
         <div className="auth-brand">
           <img
@@ -114,7 +116,7 @@ export default function Login() {
             <label className="checkbox-row">
               <input type="checkbox" defaultChecked /> Remember me
             </label>
-            <Link to="/auth/forgot-password">Forgot password?</Link>
+            {/* <Link to="/auth/forgot-password">Forgot password?</Link> */}
           </div>
 
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>

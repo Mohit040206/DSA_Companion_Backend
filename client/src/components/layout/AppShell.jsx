@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../common/Toast';
 import OnboardingModal from '../modals/OnboardingModal';
+import AppBackground from './AppBackground';
 import {
   LayoutDashboard,
   Code2,
@@ -26,7 +27,8 @@ import {
   UploadCloud,
   Users,
   FileSpreadsheet,
-  Building2
+  Building2,
+  ChevronsUpDown
 } from 'lucide-react';
 
 const NAV_PRIMARY = [
@@ -142,6 +144,7 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '', op
 
   return (
     <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      <AppBackground />
       {/* Sidebar */}
       <aside className="sidebar">
         <button
@@ -246,11 +249,56 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '', op
           })}
         </nav>
 
-        <div className="sidebar-user">
+        <div
+          className="sidebar-user"
+          ref={dropdownRef}
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          role="button"
+          tabIndex={0}
+          aria-haspopup="true"
+          aria-expanded={dropdownOpen}
+        >
           <div className="avatar">{user?.initials || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'MG')}</div>
           <div className="who">
             <div className="name">{user?.name || user?.username || 'Engineer'}</div>
             <div className="role">{user?.role === 'admin' ? 'Administrator' : (user?.targetRole || user?.currentCompany?.role || 'Software Engineer')}</div>
+          </div>
+          <ChevronsUpDown size={15} className="sidebar-user-chevron" />
+
+          {/* User Popover Menu from Bottom Left */}
+          <div
+            className={`dropdown sidebar-dropdown ${dropdownOpen ? 'open' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="dropdown-head">
+              <div className="avatar">{user?.initials || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'MG')}</div>
+              <div>
+                <div className="name">{user?.name || user?.username || 'Engineer'}</div>
+                <div className="role">{user?.role === 'admin' ? 'Administrator' : (user?.targetRole || user?.currentCompany?.role || 'Software Engineer')}</div>
+              </div>
+            </div>
+            <div className="dropdown-divider"></div>
+            <Link to="/profile" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+              <UserIcon size={15} /> Profile
+            </Link>
+            {user?.role === 'admin' && (
+              <Link to="/admin/dashboard" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                <Shield size={15} /> Admin Portal
+              </Link>
+            )}
+            <Link to="/settings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+              <Settings size={15} /> Settings
+            </Link>
+            <div
+              className="dropdown-item"
+              onClick={() => { showToast('Shortcuts: g+d Dashboard · g+p Problems · / Search', 'info'); setDropdownOpen(false); }}
+            >
+              <Keyboard size={15} /> Keyboard shortcuts
+            </div>
+            <div className="dropdown-divider"></div>
+            <div className="dropdown-item danger" onClick={handleLogout}>
+              <LogOut size={15} /> Logout
+            </div>
           </div>
         </div>
       </aside>
@@ -308,47 +356,6 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '', op
               <Bell size={18} />
               <span className="dot"></span>
             </button>
-
-            <div className="header-user" ref={dropdownRef}>
-              <div
-                className="avatar"
-                onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
-              >
-                {user?.initials || 'MG'}
-              </div>
-
-              <div className={`dropdown ${dropdownOpen ? 'open' : ''}`}>
-                <div className="dropdown-head">
-                  <div className="avatar">{user?.initials || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'MG')}</div>
-                  <div>
-                    <div className="name">{user?.name || user?.username || 'Engineer'}</div>
-                    <div className="role">{user?.role === 'admin' ? 'Administrator' : (user?.targetRole || user?.currentCompany?.role || 'Software Engineer')}</div>
-                  </div>
-                </div>
-                <div className="dropdown-divider"></div>
-                <Link to="/profile" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                  <UserIcon size={15} /> Profile
-                </Link>
-                {user?.role === 'admin' && (
-                  <Link to="/admin/dashboard" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                    <Shield size={15} /> Admin Portal
-                  </Link>
-                )}
-                <Link to="/settings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                  <Settings size={15} /> Settings
-                </Link>
-                <div
-                  className="dropdown-item"
-                  onClick={() => { showToast('Shortcuts: g+d Dashboard · g+p Problems · / Search', 'info'); setDropdownOpen(false); }}
-                >
-                  <Keyboard size={15} /> Keyboard shortcuts
-                </div>
-                <div className="dropdown-divider"></div>
-                <div className="dropdown-item danger" onClick={handleLogout}>
-                  <LogOut size={15} /> Logout
-                </div>
-              </div>
-            </div>
           </div>
         </header>
 

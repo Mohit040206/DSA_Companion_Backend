@@ -35,7 +35,9 @@
 
 /* Cards */
 .card{
-  background:var(--surface);
+  background:var(--surface-card, var(--surface));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border:1px solid var(--border);
   border-radius:var(--r-lg);
   padding:22px;

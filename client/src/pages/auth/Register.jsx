@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowRight, User, Mail, Lock, Building, Briefcase, Eye, EyeOff } from 'lucide-react';
+import AuthBackground from '../../components/auth/AuthBackground';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -46,6 +47,7 @@ export default function Register() {
 
   return (
     <div className="auth-page">
+      <AuthBackground />
       <div className="auth-card enter" style={{ width: '480px' }}>
         <div className="auth-brand">
           <img

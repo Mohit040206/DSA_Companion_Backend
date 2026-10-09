@@ -1,0 +1,137 @@
+/* ============================================================
+   APP AMBIENT BACKDROP — INSIDE PAGES (LIGHT & DARK THEMED)
+   ============================================================ */
+
+.app-ambient-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+  transition: background-color 0.3s ease;
+}
+
+/* 1. Dynamic Aurora Glow Orbs */
+.ambient-aurora {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* Violet Top-Left Aurora */
+.aurora-violet {
+  top: -140px;
+  left: 15%;
+  width: 620px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.055) 0%, rgba(139, 92, 246, 0.02) 50%, transparent 70%);
+  filter: blur(90px);
+  animation: auroraShiftA 26s ease-in-out infinite alternate;
+}
+
+/* Cyan Top-Right Aurora */
+.aurora-cyan {
+  top: -100px;
+  right: 12%;
+  width: 580px;
+  height: 440px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.045) 0%, rgba(45, 212, 191, 0.02) 50%, transparent 70%);
+  filter: blur(90px);
+  animation: auroraShiftB 30s ease-in-out infinite alternate;
+}
+
+/* Bottom Aurora - Hidden in light mode for maximum cleanliness */
+.aurora-bottom {
+  display: none;
+}
+
+@keyframes auroraShiftA {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(35px, 25px, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(-25px, 15px, 0) scale(0.96);
+  }
+}
+
+@keyframes auroraShiftB {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-35px, 30px, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(20px, -15px, 0) scale(0.97);
+  }
+}
+
+@keyframes auroraShiftC {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(25px, -20px, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(-15px, 15px, 0) scale(0.95);
+  }
+}
+
+/* 2. Algorithmic Matrix Blueprint Dot Grid (Light Mode) */
+.ambient-dot-grid {
+  position: absolute;
+  inset: 0;
+  /* Visible deep slate/black dots */
+  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.18) 1.25px, transparent 1.25px);
+  background-size: 24px 24px;
+  background-position: 0 0;
+  opacity: 1;
+  transition: background-image 0.3s ease, opacity 0.3s ease;
+}
+
+/* ============================================================
+   DARK THEME OVERRIDES FOR INSIDE PAGES
+   ============================================================ */
+
+[data-theme="dark"] .aurora-violet {
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.14) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 70%);
+  filter: blur(80px);
+}
+
+[data-theme="dark"] .aurora-cyan {
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.11) 0%, rgba(56, 189, 248, 0.04) 50%, transparent 70%);
+  filter: blur(80px);
+}
+
+[data-theme="dark"] .aurora-bottom {
+  display: block;
+  bottom: -150px;
+  left: 30%;
+  width: 600px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 65%);
+  filter: blur(90px);
+  animation: auroraShiftC 32s ease-in-out infinite alternate;
+}
+
+[data-theme="dark"] .ambient-dot-grid {
+  /* Visible luminous violet dots */
+  background-image: radial-gradient(circle, rgba(167, 139, 250, 0.22) 1.25px, transparent 1.25px);
+  background-size: 24px 24px;
+  opacity: 1;
+}
+
+/* Accessibility: respect user preferences for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .ambient-aurora {
+    animation: none !important;
+  }
+}
