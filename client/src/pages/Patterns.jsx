@@ -52,7 +52,7 @@ export default function Patterns() {
           <div className="card" style={{ textAlign: 'center', padding: '48px 20px' }}>
             <div className="state-icon" style={{ fontSize: '36px', marginBottom: '12px' }}>🧩</div>
             <h3>No Algorithmic Patterns Available</h3>
-            <p style={{ color: 'var(--text-muted)' }}>Add problems to your problem bank to auto-generate pattern analytics.</p>
+            <p style={{ color: 'var(--text-muted)' }}>Curated pattern analytics will appear here as problems are loaded.</p>
           </div>
         ) : (
           <div className="pattern-grid">
@@ -76,8 +76,8 @@ export default function Patterns() {
 
                   <div className="pattern-stats-row">
                     <div className="ps">
-                      <div className="num">{pat.solved} / {pat.attempted}</div>
-                      <div className="lbl">Solved / Attempted</div>
+                      <div className="num">{pat.solved} / {pat.count || pat.attempted || 0}</div>
+                      <div className="lbl">Solved / Total</div>
                     </div>
                     <div className="ps">
                       <div className="num">{pat.avgConfidence} ⭐</div>

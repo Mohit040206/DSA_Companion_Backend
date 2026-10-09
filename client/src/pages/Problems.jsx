@@ -5,12 +5,10 @@ import { problemAPI } from '../services/api';
 import { useToast } from '../components/common/Toast';
 import { useAuth } from '../context/AuthContext';
 import {
-  Plus,
   Search,
   ChevronLeft,
   ChevronRight,
-  Filter,
-  X
+  Filter
 } from 'lucide-react';
 
 export default function Problems() {
@@ -30,20 +28,10 @@ export default function Problems() {
   const [statusFilter, setStatusFilter] = useState(statusParamVal);
   const [patternFilter, setPatternFilter] = useState(patternParamVal);
   const [page, setPage] = useState(pageParamVal);
-  const PAGE_SIZE = 10;
-
-  const [modalOpen, setModalOpen] = useState(false);
+  const [pageSize, setPageSize] = useState(parseInt(searchParams.get('limit')) || 15);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const { showToast } = useToast();
-
-  const [newProblem, setNewProblem] = useState({
-    title: '',
-    difficulty: 'Medium',
-    platform: 'LeetCode',
-    patterns: 'hashmap',
-    estimatedTime: '20 min',
-    learningObjectives: '',
-    url: ''
-  });
 
   // Sync state if searchParams change externally (e.g. browser back/forward)
   useEffect(() => {
@@ -52,13 +40,31 @@ export default function Problems() {
     setStatusFilter(searchParams.get('status') || 'All');
     setPatternFilter(searchParams.get('pattern') || 'All');
     setPage(parseInt(searchParams.get('page')) || 1);
+    setPageSize(parseInt(searchParams.get('limit')) || 15);
   }, [searchParams]);
 
   useEffect(() => {
     async function loadProblems() {
+      setLoading(true);
       try {
-        const data = await problemAPI.getAll();
-        setProblems(Array.isArray(data) ? data : []);
+        const queryParams = {
+          page,
+          limit: pageSize,
+          search: search || undefined,
+          difficulty: difficultyFilter !== 'All' ? difficultyFilter : undefined,
+          status: statusFilter !== 'All' ? statusFilter : undefined,
+          pattern: patternFilter !== 'All' ? patternFilter : undefined
+        };
+        const data = await problemAPI.getAll(queryParams);
+        const list = Array.isArray(data) ? data : (data.problems || []);
+        setProblems(list);
+        if (data.pagination) {
+          setTotalCount(data.pagination.total);
+          setTotalPages(data.pagination.totalPages);
+        } else {
+          setTotalCount(list.length);
+          setTotalPages(Math.ceil(list.length / pageSize) || 1);
+        }
       } catch (err) {
         showToast('Failed to load problems. Is the server running?', 'error');
         setProblems([]);
@@ -67,10 +73,34 @@ export default function Problems() {
       }
     }
     loadProblems();
-  }, []);
+  }, [page, pageSize, search, difficultyFilter, statusFilter, patternFilter]);
 
-  // Extract unique pattern options from existing problems
-  const availablePatterns = ['All', ...Array.from(new Set(problems.flatMap(p => p.patterns || [])))];
+  // Curated common pattern options plus any loaded patterns
+  const standardPatterns = [
+    'All',
+    'HashMap',
+    'Two Pointers',
+    'Sliding Window',
+    'Binary Search',
+    'Prefix Sum',
+    'Fast & Slow Pointers',
+    'Linked List',
+    'Trees',
+    'Depth-First Search',
+    'Breadth-First Search',
+    'Graph',
+    'Dynamic Programming',
+    'Stack',
+    'Monotonic Stack',
+    'Heap',
+    'Backtracking',
+    'Trie',
+    'Greedy',
+    'Intervals',
+    'Matrix',
+    'Bit Manipulation'
+  ];
+  const availablePatterns = Array.from(new Set([...standardPatterns, ...(problems.flatMap(p => p.patterns || []))]));
 
   const updateFilterParams = (newFilters) => {
     const nextSearch = newFilters.search !== undefined ? newFilters.search : search;
@@ -78,12 +108,14 @@ export default function Problems() {
     const nextStatus = newFilters.status !== undefined ? newFilters.status : statusFilter;
     const nextPattern = newFilters.pattern !== undefined ? newFilters.pattern : patternFilter;
     const nextPage = newFilters.page !== undefined ? newFilters.page : 1;
+    const nextLimit = newFilters.limit !== undefined ? newFilters.limit : pageSize;
 
     setSearch(nextSearch);
     setDifficultyFilter(nextDiff);
     setStatusFilter(nextStatus);
     setPatternFilter(nextPattern);
     setPage(nextPage);
+    setPageSize(nextLimit);
 
     const params = {};
     if (nextSearch) params.search = nextSearch;
@@ -91,6 +123,7 @@ export default function Problems() {
     if (nextStatus !== 'All') params.status = nextStatus;
     if (nextPattern !== 'All') params.pattern = nextPattern;
     if (nextPage > 1) params.page = String(nextPage);
+    if (nextLimit !== 15) params.limit = String(nextLimit);
 
     setSearchParams(params, { replace: true });
   };
@@ -111,62 +144,14 @@ export default function Problems() {
     updateFilterParams({ pattern: pat, page: 1 });
   };
 
-  const handleAddSubmit = async (e) => {
-    e.preventDefault();
-    if (!newProblem.title) return;
-    try {
-      const added = await problemAPI.create({
-        ...newProblem,
-        patterns: newProblem.patterns.split(',').map(p => p.trim())
-      });
-      setProblems(prev => [added, ...prev]);
-      showToast('Problem added successfully!', 'success');
-      setModalOpen(false);
-      setNewProblem({
-        title: '',
-        difficulty: 'Medium',
-        platform: 'LeetCode',
-        patterns: 'hashmap',
-        estimatedTime: '20 min',
-        learningObjectives: '',
-        url: ''
-      });
-    } catch (err) {
-      showToast('Failed to add problem', 'error');
-    }
-  };
-
-  const filteredProblems = problems.filter((p) => {
-    const matchesSearch =
-      !search ||
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.patterns?.some(pat => pat.toLowerCase().includes(search.toLowerCase()));
-
-    const matchesDiff = difficultyFilter === 'All' || p.difficulty === difficultyFilter;
-    const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
-    const matchesPattern = patternFilter === 'All' || p.patterns?.includes(patternFilter);
-
-    return matchesSearch && matchesDiff && matchesStatus && matchesPattern;
-  });
-
-  const totalPages = Math.ceil(filteredProblems.length / PAGE_SIZE) || 1;
-  const currentPage = Math.min(page, totalPages);
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const paginatedProblems = filteredProblems.slice(startIndex, startIndex + PAGE_SIZE);
+  const paginatedProblems = problems;
 
   return (
     <AppShell title="Problems Directory" crumb="Prepare">
       <div className="enter">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-          <div className="page-intro" style={{ marginBottom: 0 }}>
-            <h1>DSA Problem Bank</h1>
-            <p>Targeted problem list tagged by core algorithmic pattern and status.</p>
-          </div>
-          {user?.role === 'admin' && (
-            <button className="btn btn-primary" onClick={() => setModalOpen(true)}>
-              <Plus size={16} /> Add Problem
-            </button>
-          )}
+        <div className="page-intro" style={{ marginBottom: '20px' }}>
+          <h1>DSA Problem Bank</h1>
+          <p>Targeted problem list tagged by core algorithmic pattern and status.</p>
         </div>
 
         {/* Toolbar & Filters */}
@@ -312,7 +297,7 @@ export default function Problems() {
           </table>
 
           {/* Pagination Footer */}
-          {filteredProblems.length > 0 && (
+          {totalCount > 0 && (
             <div style={{
               display: 'flex',
               justify: 'space-between',
@@ -323,27 +308,43 @@ export default function Problems() {
               fontSize: '13px',
               color: 'var(--text-secondary)'
             }}>
-              <div>
-                Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(startIndex + PAGE_SIZE, filteredProblems.length)}</strong> of <strong>{filteredProblems.length}</strong> problems
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <div>
+                  Showing <strong>{(page - 1) * pageSize + 1}</strong> to <strong>{Math.min(page * pageSize, totalCount)}</strong> of <strong>{totalCount}</strong> problems
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px' }}>Rows:</span>
+                  <select
+                    className="input"
+                    value={pageSize}
+                    onChange={(e) => updateFilterParams({ limit: parseInt(e.target.value) || 15, page: 1 })}
+                    style={{ width: 'auto', padding: '2px 8px', fontSize: '12px', height: '26px' }}
+                  >
+                    <option value="10">10 / page</option>
+                    <option value="15">15 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                  </select>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   className="btn btn-sm btn-secondary"
-                  disabled={currentPage <= 1}
-                  onClick={() => updateFilterParams({ page: Math.max(1, currentPage - 1) })}
+                  disabled={page <= 1}
+                  onClick={() => updateFilterParams({ page: Math.max(1, page - 1) })}
                   style={{ gap: '4px' }}
                 >
                   <ChevronLeft size={14} /> Previous
                 </button>
                 
                 <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text)', padding: '0 6px' }}>
-                  Page {currentPage} of {totalPages}
+                  Page {page} of {totalPages}
                 </span>
 
                 <button
                   className="btn btn-sm btn-secondary"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => updateFilterParams({ page: Math.min(totalPages, currentPage + 1) })}
+                  disabled={page >= totalPages}
+                  onClick={() => updateFilterParams({ page: Math.min(totalPages, page + 1) })}
                   style={{ gap: '4px' }}
                 >
                   Next <ChevronRight size={14} />
@@ -353,92 +354,6 @@ export default function Problems() {
           )}
         </div>
       </div>
-
-      {/* Add Problem Modal Overlay (Admin Only) */}
-      {user?.role === 'admin' && modalOpen && (
-        <div className={`modal-overlay open`} onClick={(e) => { if (e.target.classList.contains('modal-overlay')) setModalOpen(false); }}>
-        <div className="modal">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3>Add New DSA Problem</h3>
-            <button className="icon-btn" onClick={() => setModalOpen(false)}><X size={18} /></button>
-          </div>
-
-          <form onSubmit={handleAddSubmit}>
-            <div className="field">
-              <label>Problem Title</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="e.g. Valid Anagram"
-                value={newProblem.title}
-                onChange={(e) => setNewProblem({ ...newProblem, title: e.target.value })}
-                required
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="field">
-                <label>Difficulty</label>
-                <select
-                  className="input"
-                  value={newProblem.difficulty}
-                  onChange={(e) => setNewProblem({ ...newProblem, difficulty: e.target.value })}
-                >
-                  <option value="Easy">Easy</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Hard">Hard</option>
-                </select>
-              </div>
-
-              <div className="field">
-                <label>Platform</label>
-                <select
-                  className="input"
-                  value={newProblem.platform}
-                  onChange={(e) => setNewProblem({ ...newProblem, platform: e.target.value })}
-                >
-                  <option value="LeetCode">LeetCode</option>
-                  <option value="HackerRank">HackerRank</option>
-                  <option value="Codeforces">Codeforces</option>
-                  <option value="GeeksforGeeks">GeeksforGeeks</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="field">
-              <label>Patterns (comma separated)</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="hashmap, sliding-window"
-                value={newProblem.patterns}
-                onChange={(e) => setNewProblem({ ...newProblem, patterns: e.target.value })}
-              />
-            </div>
-
-            <div className="field">
-              <label>Learning Objectives / Core Concept</label>
-              <textarea
-                className="input"
-                rows="2"
-                placeholder="e.g. Single pass lookup with frequency count..."
-                value={newProblem.learningObjectives}
-                onChange={(e) => setNewProblem({ ...newProblem, learningObjectives: e.target.value })}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary">
-                Save Problem
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-      )}
     </AppShell>
   );
 }

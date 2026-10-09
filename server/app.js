@@ -19,6 +19,7 @@ const revisionRoutes = require("./modules/revision/revision.route");
 const userRoutes = require("./modules/user/user.route");
 const aiRoutes = require("./modules/ai/ai.route");
 const companyPrepRoutes = require("./modules/companyPrep/companyPrep.route");
+const patternRoutes = require("./modules/pattern/pattern.route");
 
 dotenv.config();
 
@@ -47,5 +48,6 @@ app.use("/api/revision", revisionRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/company-prep", companyPrepRoutes);
+app.use("/api/pattern", patternRoutes);
 
 module.exports = app;

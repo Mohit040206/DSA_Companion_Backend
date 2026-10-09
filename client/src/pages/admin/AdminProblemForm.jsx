@@ -27,6 +27,8 @@ export default function AdminProblemForm() {
 
   const [conceptInput, setConceptInput] = useState('');
   const [companyInput, setCompanyInput] = useState('');
+  const [newPatternInput, setNewPatternInput] = useState('');
+  const [creatingPattern, setCreatingPattern] = useState(false);
 
   useEffect(() => {
     async function loadFormDependencies() {
@@ -54,14 +56,40 @@ export default function AdminProblemForm() {
     loadFormDependencies();
   }, [id, isEditing]);
 
-  const togglePattern = (patId) => {
+  const togglePattern = (patName) => {
+    if (!patName) return;
     setFormData(prev => {
-      const exists = prev.patterns.includes(patId);
+      const exists = prev.patterns.some(p => p.toLowerCase() === patName.toLowerCase());
       return {
         ...prev,
-        patterns: exists ? prev.patterns.filter(p => p !== patId) : [...prev.patterns, patId]
+        patterns: exists
+          ? prev.patterns.filter(p => p.toLowerCase() !== patName.toLowerCase())
+          : [...prev.patterns, patName]
       };
     });
+  };
+
+  const handleAddNewPattern = async () => {
+    const trimmed = newPatternInput.trim();
+    if (!trimmed) return;
+    setCreatingPattern(true);
+    try {
+      const res = await patternAPI.create({ name: trimmed });
+      const createdName = res.name || trimmed;
+      setPatternsList(prev => {
+        if (!prev.some(p => (p.name || '').toLowerCase() === createdName.toLowerCase())) {
+          return [...prev, { id: res.slug || res.id || createdName, name: createdName }];
+        }
+        return prev;
+      });
+      togglePattern(createdName);
+      setNewPatternInput('');
+      showToast(`Pattern "${createdName}" created & AI deep dive generated!`, 'success');
+    } catch (err) {
+      showToast('Failed to create pattern', 'error');
+    } finally {
+      setCreatingPattern(false);
+    }
   };
 
   const addConcept = (e) => {
@@ -207,21 +235,75 @@ export default function AdminProblemForm() {
           <div className="card" style={{ marginBottom: '20px' }}>
             <div className="section-head"><h2>Classification & Patterns</h2></div>
             <div className="field">
-              <label>Algorithmic Patterns</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ margin: 0 }}>Algorithmic Patterns ({formData.patterns.length} selected)</label>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Click chips to toggle
+                </span>
+              </div>
+
+              {/* Pattern Chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
                 {patternsList.map(pat => {
-                  const checked = formData.patterns.includes(pat.id);
+                  const patName = pat.name || pat.id;
+                  const isChecked = formData.patterns.some(p => p.toLowerCase() === patName.toLowerCase());
                   return (
-                    <label
-                      key={pat.id}
-                      className={`filter-chip ${checked ? 'active' : ''}`}
-                      onClick={() => togglePattern(pat.id)}
+                    <button
+                      type="button"
+                      key={pat.id || patName}
+                      className={`filter-chip ${isChecked ? 'active' : ''}`}
+                      onClick={() => togglePattern(patName)}
+                      style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                     >
-                      <input type="checkbox" checked={checked} readOnly style={{ display: 'none' }} />
-                      {pat.name}
-                    </label>
+                      {isChecked ? '✓ ' : ''}{patName}
+                    </button>
                   );
                 })}
+              </div>
+
+              {/* Inline Create New Pattern (Admin Exclusive) */}
+              <div style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--r-sm)',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>
+                    ➕ Admin: Create New Algorithmic Pattern
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--accent)' }}>
+                    ✨ AI auto-generates deep-dive & invariants into MongoDB
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. Segment Tree, Monotonic Deque, Trie..."
+                    value={newPatternInput}
+                    onChange={(e) => setNewPatternInput(e.target.value)}
+                    style={{ height: '34px', fontSize: '13px', maxWidth: '340px' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddNewPattern();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={handleAddNewPattern}
+                    disabled={!newPatternInput.trim() || creatingPattern}
+                    style={{ height: '34px' }}
+                  >
+                    {creatingPattern ? 'Generating with AI...' : '+ Add Pattern'}
+                  </button>
+                </div>
               </div>
             </div>
 
