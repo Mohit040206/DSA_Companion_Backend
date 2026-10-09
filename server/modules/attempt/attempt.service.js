@@ -238,10 +238,66 @@ const getAttemptByProblemId=async(userId,problemId)=>{
     return attempts || [];
 }
 
-const getAllAttempts=async(userId)=>{
-    const attempts=await Attempt.find({userId}).sort({createdAt:-1});
-    return attempts || [];
-}
+const getAllAttempts = async (userId, options = {}) => {
+    const page = Math.max(1, parseInt(options.page) || 1);
+    const limit = options.limit !== undefined ? parseInt(options.limit) : 15;
+    const query = { userId };
+
+    if (options.outcome && options.outcome !== 'All') {
+        if (options.outcome === 'Solved') {
+            query.outcome = { $in: ['Solved', 'SolvedClean', 'SolvedWithHints', 'Solved with hints', 'Solved With Hints'] };
+        } else if (options.outcome === 'Hints') {
+            query.outcome = { $in: ['SolvedWithHints', 'Solved with hints', 'Solved With Hints'] };
+        } else if (options.outcome === 'Unsolved') {
+            query.outcome = { $in: ['CouldNotSolve', 'Could not solve', 'Could Not Solve', 'NeedSolution', 'Need solution', 'Need Solution'] };
+        } else {
+            query.outcome = options.outcome;
+        }
+    }
+
+    if (limit <= 0 || options.all === true || options.all === 'true') {
+        const attempts = await Attempt.find(query)
+            .populate("problemId", "title difficulty platform patterns")
+            .sort({ createdAt: -1 })
+            .lean();
+        return {
+            attempts,
+            pagination: {
+                page: 1,
+                limit: attempts.length,
+                total: attempts.length,
+                totalPages: 1,
+                hasNextPage: false,
+                hasPrevPage: false
+            }
+        };
+    }
+
+    const skip = (page - 1) * limit;
+    const [attempts, total] = await Promise.all([
+        Attempt.find(query)
+            .populate("problemId", "title difficulty platform patterns")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+        Attempt.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return {
+        attempts,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+        }
+    };
+};
 
 const bulkImportAttempts = async (userId, records) => {
     if (!userId) {

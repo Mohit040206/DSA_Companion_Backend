@@ -249,18 +249,31 @@ const getAttemptByProblemId=async(req,res)=>{
     }
 };
 
-const getAllAttempts=async(req,res)=>{
-    const userId=req.userId;
-    try{
-        const attempts=await attemptService.getAllAttempts(userId);
-        return res.status(200).json(attempts);
-    }catch(err){
+const getAllAttempts = async (req, res) => {
+    const userId = req.userId;
+    try {
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            outcome: req.query.outcome,
+            all: req.query.all
+        };
+        const result = await attemptService.getAllAttempts(userId, options);
+        return res.status(200).json({
+            success: true,
+            message: "Attempts fetched successfully",
+            code: 200,
+            data: result.attempts,
+            attempts: result.attempts,
+            pagination: result.pagination
+        });
+    } catch (err) {
         console.error(`[AttemptController:getAllAttempts] Error for userId=${userId}:`, err.stack || err.message);
-        const statusCode=err.statusCode || 500;
+        const statusCode = err.statusCode || 500;
         return res.status(statusCode).json({
-            success:false,
-            message:err.message || "Failed to fetch attempts list.",
-            code:statusCode
+            success: false,
+            message: err.message || "Failed to fetch attempts list.",
+            code: statusCode
         });
     }
 };

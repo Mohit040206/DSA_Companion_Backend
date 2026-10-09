@@ -38,9 +38,9 @@ export default function Dashboard() {
     try {
       // Step 1: Fetch fast core stats & problems in parallel
       const [probs, revs, atts] = await Promise.all([
-        problemAPI.getAll(),
-        revisionAPI.getAll(),
-        attemptAPI.getAll()
+        problemAPI.getAll({ all: true }),
+        revisionAPI.getAll({ all: true }),
+        attemptAPI.getAll({ all: true })
       ]);
       setProblems(Array.isArray(probs) ? probs : []);
       setRevisions(Array.isArray(revs) ? revs : []);
@@ -98,6 +98,28 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* Big Brother Coach Greeting */}
+        {aiData?.coachGreeting && (
+          <div
+            style={{
+              padding: '12px 16px',
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)',
+              border: '1px solid rgba(139, 92, 246, 0.25)',
+              borderRadius: 'var(--r-md)',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12
+            }}
+          >
+            <Sparkles size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+              <strong style={{ color: 'var(--accent)' }}>Big Brother Coach: </strong>
+              {aiData.coachGreeting}
+            </div>
+          </div>
+        )}
+
         {/* Hero Recommended Action (AI Engine Router) */}
         <div className="hero-action">
           <div className="hero-action-content">
@@ -146,12 +168,24 @@ export default function Dashboard() {
                     key={idx}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)', fontSize: 13 }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
-                      <span style={{ fontWeight: 600 }}>{item.title}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
+                        <span style={{ fontWeight: 600 }}>{item.title}</span>
+                        {item.isDoubleRevision && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'rgba(236, 72, 153, 0.15)', color: '#EC4899', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
+                            Revise 2x
+                          </span>
+                        )}
+                      </div>
+                      {item.coachReason && (
+                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', paddingLeft: 26 }}>
+                          💡 {item.coachReason}
+                        </div>
+                      )}
                     </div>
                     {item.problemId && (
-                      <Link to={`/problems/${item.problemId}`} className="btn btn-tertiary btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>
+                      <Link to={`/problems/${item.problemId}`} className="btn btn-tertiary btn-sm" style={{ padding: '2px 8px', fontSize: 11, flexShrink: 0 }}>
                         Solve <ArrowRight size={12} />
                       </Link>
                     )}
@@ -351,7 +385,9 @@ export default function Dashboard() {
               {attempts.length > 0 ? (
                 <div className="timeline">
                   {attempts.slice(0, 4).map((att) => {
-                    const prob = problems.find(p => p._id === att.problemId || p.id === att.problemId) || { title: 'Problem Attempt' };
+                    const prob = (typeof att.problemId === 'object' && att.problemId !== null)
+                      ? att.problemId
+                      : (problems.find(p => p._id === att.problemId || p.id === att.problemId) || { title: 'Problem Attempt' });
                     const isClean = att.outcome === 'Solved';
                     const isHints = att.outcome === 'SolvedWithHints' || att.outcome === 'Solved with hints';
                     return (

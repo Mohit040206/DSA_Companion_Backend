@@ -16,7 +16,43 @@ class UserService {
       query.status = status;
     }
 
-    return await User.find(query).select("-password").sort({ createdAt: -1 });
+    const page = Math.max(1, parseInt(filters.page) || 1);
+    const limit = filters.limit !== undefined ? parseInt(filters.limit) : 15;
+
+    if (limit <= 0 || filters.all === true || filters.all === 'true') {
+      const users = await User.find(query).select("-password").sort({ createdAt: -1 }).lean();
+      return {
+        users,
+        pagination: {
+          page: 1,
+          limit: users.length,
+          total: users.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false
+        }
+      };
+    }
+
+    const skip = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      User.find(query).select("-password").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      User.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return {
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    };
   }
 
   async getUserById(userId) {

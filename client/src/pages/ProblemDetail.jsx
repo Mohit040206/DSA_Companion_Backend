@@ -776,7 +776,7 @@ export default function ProblemDetail() {
           <form onSubmit={handleSubmitAttempt}>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', background: 'var(--surface-2)', padding: '8px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
               <Clock size={14} style={{ color: 'var(--accent)' }} />
-              <span>Elapsed time calculated from active session timer. You can adjust it below.</span>
+              <span>Session duration: <strong style={{ color: 'var(--text-primary)' }}>{formatElapsed(elapsedSeconds)}</strong> ({getCalculatedDuration()} min) recorded automatically from timer.</span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -811,7 +811,7 @@ export default function ProblemDetail() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="field">
                 <label>Confidence (1-5 ⭐)</label>
                 <select
@@ -846,18 +846,6 @@ export default function ProblemDetail() {
                   <option value={2}>2 Hints</option>
                   <option value={3}>3 Hints</option>
                 </select>
-              </div>
-
-              <div className="field">
-                <label>Duration (mins)</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="input"
-                  value={reflectionForm.durationMin || 1}
-                  onChange={(e) => setReflectionForm({ ...reflectionForm, durationMin: Math.max(1, parseInt(e.target.value) || 1) })}
-                  title="Calculated from active timer sessions"
-                />
               </div>
             </div>
 

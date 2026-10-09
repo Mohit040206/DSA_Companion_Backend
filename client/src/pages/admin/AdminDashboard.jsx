@@ -11,8 +11,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadStats() {
       const [probs, u] = await Promise.all([
-        problemAPI.getAll(),
-        adminAPI.getUsers()
+        problemAPI.getAll({ all: true }),
+        adminAPI.getUsers({ all: true })
       ]);
       setProblems(probs || []);
       setUsers(u || []);

@@ -44,14 +44,21 @@ const listProblem = async (req, res) => {
             difficulty: req.query.difficulty,
             platform: req.query.platform,
             pattern: req.query.pattern,
-            search: req.query.search
+            search: req.query.search,
+            tier: req.query.tier,
+            status: req.query.status,
+            page: req.query.page,
+            limit: req.query.limit,
+            all: req.query.all
         };
-        const problems = await ProblemService.getAllProblem(filter);
+        const result = await ProblemService.getAllProblem(filter);
         res.status(200).json({
             success: true,
             message: "Problems fetched successfully.",
             code: 200,
-            data: problems
+            data: result.problems,
+            problems: result.problems,
+            pagination: result.pagination
         });
     } catch (err) {
         console.error(err.message);

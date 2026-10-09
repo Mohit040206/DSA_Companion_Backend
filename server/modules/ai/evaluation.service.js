@@ -37,10 +37,80 @@ const evaluateAttempt = async (userId, attemptId) => {
   await attempt.save();
 
   try {
-    // Request static evaluation from AI provider
+    // 1. Gather historical pattern context from MongoDB
+    const problemPatterns = Array.isArray(attempt.problemId.patterns) ? attempt.problemId.patterns : [];
+    const primaryPattern = problemPatterns[0] || "General";
+
+    let patternContext = {
+      primaryPattern,
+      patterns: problemPatterns,
+      totalPatternSolved: 0,
+      avgHints: 0,
+      currentHints: attempt.hintsUsed || attempt.hints || 0,
+      isHintSpike: false,
+      cleanSolvesCount: 0
+    };
+
+    try {
+      const searchPatterns = problemPatterns.length > 0 ? problemPatterns : [primaryPattern];
+      const matchingProblems = await Problem.find({
+        patterns: { $in: searchPatterns }
+      }).select("_id").lean();
+
+      const matchingProbIds = matchingProblems.map(p => p._id);
+
+      const pastAttempts = await Attempt.find({
+        userId,
+        problemId: { $in: matchingProbIds },
+        _id: { $ne: attempt._id }
+      }).select("problemId outcome confidence hintsUsed hints").lean();
+
+      const solvedProblemIds = new Set();
+      let pastHintsSum = 0;
+      let pastSolvedAttemptsCount = 0;
+      let cleanSolvesCount = 0;
+
+      const isOutcomeSolved = (out) => {
+        if (!out) return false;
+        const o = String(out).toLowerCase();
+        return o.includes("solved") && !o.includes("couldnot") && !o.includes("need");
+      };
+
+      pastAttempts.forEach(pa => {
+        if (isOutcomeSolved(pa.outcome)) {
+          solvedProblemIds.add(pa.problemId.toString());
+          const h = pa.hintsUsed ?? pa.hints ?? 0;
+          pastHintsSum += h;
+          pastSolvedAttemptsCount++;
+          if (h === 0) cleanSolvesCount++;
+        }
+      });
+
+      const totalPatternSolved = solvedProblemIds.size;
+      const avgHints = pastSolvedAttemptsCount > 0 ? (pastHintsSum / pastSolvedAttemptsCount) : 0;
+      const currentHints = attempt.hintsUsed ?? attempt.hints ?? 0;
+
+      // Spike detection: e.g. user smoothly solved >= 2 problems on this pattern, previously averaged low hints, and now took >= 2 hints
+      const isHintSpike = totalPatternSolved >= 2 && currentHints >= 2 && (currentHints >= avgHints + 1.2 || currentHints >= 3);
+
+      patternContext = {
+        primaryPattern,
+        patterns: problemPatterns,
+        totalPatternSolved,
+        avgHints: Math.round(avgHints * 10) / 10,
+        currentHints,
+        isHintSpike,
+        cleanSolvesCount
+      };
+    } catch (histErr) {
+      console.warn("Failed to gather pattern history for attempt evaluation:", histErr.message);
+    }
+
+    // Request static evaluation from AI provider with pattern history
     const evalResult = await aiProvider.evaluateAttempt({
       problem: attempt.problemId,
-      attempt
+      attempt,
+      patternContext
     });
 
     // Update Attempt with AI evaluation results
@@ -63,9 +133,17 @@ const evaluateAttempt = async (userId, attemptId) => {
       whatWasDoneWell: evalResult.whatWasDoneWell || [],
       whatNeedsFixing: evalResult.whatNeedsFixing || [],
       keyLearning: evalResult.keyLearning || "",
-      retryRecommended: evalResult.retryRecommended || false,
+      retryRecommended: evalResult.retryRecommended || patternContext.isHintSpike || false,
       retryFocus: evalResult.retryFocus || "",
-      confidenceAdjustment: evalResult.confidenceAdjustment || ""
+      confidenceAdjustment: evalResult.confidenceAdjustment || "",
+
+      coachFeedback: evalResult.coachFeedback || "",
+      patternContext: {
+        pattern: patternContext.primaryPattern,
+        totalPatternSolved: patternContext.totalPatternSolved,
+        avgHints: patternContext.avgHints,
+        isSpike: patternContext.isHintSpike
+      }
     };
 
     // Update canonical learning fields on Attempt using AI derivation
@@ -80,25 +158,43 @@ const evaluateAttempt = async (userId, attemptId) => {
 
     await attempt.save();
 
-    // Trigger Revision recommendation if retry is recommended
-    if (evalResult.retryRecommended || evalResult.verdict === "NEEDS_ANOTHER_ATTEMPT") {
+    // Trigger Revision recommendation if retry is recommended or if hint spike occurred
+    const needsRevision = evalResult.retryRecommended ||
+                          evalResult.verdict === "NEEDS_ANOTHER_ATTEMPT" ||
+                          patternContext.isHintSpike ||
+                          patternContext.currentHints >= 3;
+
+    if (needsRevision) {
       try {
         const existingRevision = await Revision.findOne({
           userId,
-          sourceAttemptId: attempt._id,
+          problemId: attempt.problemId._id,
           status: "Pending"
         });
+
+        const revisionFocus = patternContext.isHintSpike
+          ? `Revise twice: Master tricky ${patternContext.primaryPattern} variation (needed ${patternContext.currentHints} hints after ${patternContext.totalPatternSolved} smooth solves). Solidify edge cases!`
+          : (evalResult.retryFocus || evalResult.keyLearning || "AI-recommended retry focus");
+
+        const revisionReason = patternContext.isHintSpike || patternContext.currentHints > 0
+          ? "HintsUsed"
+          : "AIEvaluationRetry";
 
         if (!existingRevision) {
           await Revision.create({
             userId,
             problemId: attempt.problemId._id,
             sourceAttemptId: attempt._id,
-            reason: "AIEvaluationRetry",
-            focus: evalResult.retryFocus || evalResult.keyLearning || "AI-recommended retry focus",
+            reason: revisionReason,
+            focus: revisionFocus,
             scheduledFor: new Date(),
             status: "Pending"
           });
+        } else {
+          existingRevision.sourceAttemptId = attempt._id;
+          existingRevision.focus = revisionFocus;
+          existingRevision.reason = revisionReason;
+          await existingRevision.save();
         }
       } catch (revErr) {
         console.error("Failed to schedule revision for AI evaluation retry:", revErr.message);

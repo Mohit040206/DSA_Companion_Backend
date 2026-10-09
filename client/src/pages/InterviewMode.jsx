@@ -47,7 +47,7 @@ export default function InterviewMode() {
   useEffect(() => {
     async function loadMockProblem() {
       try {
-        const probs = await problemAPI.getAll();
+        const probs = await problemAPI.getAll({ all: true });
         const safeProbs = Array.isArray(probs) ? probs : [];
         setAllProblems(safeProbs);
 

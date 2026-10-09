@@ -22,7 +22,9 @@ export default function AdminProblems() {
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [targetProblem, setTargetProblem] = useState(null);
 
@@ -31,9 +33,24 @@ export default function AdminProblems() {
 
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
       try {
-        const data = await problemAPI.getAll();
-        setProblems(Array.isArray(data) ? data : []);
+        const queryParams = {
+          page,
+          limit: pageSize,
+          search: search || undefined,
+          tier: tierFilter !== 'all' ? tierFilter : undefined
+        };
+        const data = await problemAPI.getAll(queryParams);
+        const list = Array.isArray(data) ? data : (data.problems || []);
+        setProblems(list);
+        if (data.pagination) {
+          setTotalCount(data.pagination.total);
+          setTotalPages(data.pagination.totalPages);
+        } else {
+          setTotalCount(list.length);
+          setTotalPages(Math.ceil(list.length / pageSize) || 1);
+        }
       } catch (err) {
         showToast('Failed to load admin problems', 'error');
       } finally {
@@ -41,7 +58,7 @@ export default function AdminProblems() {
       }
     }
     loadData();
-  }, []);
+  }, [page, pageSize, search, tierFilter]);
 
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
@@ -72,22 +89,7 @@ export default function AdminProblems() {
     }
   };
 
-  const filteredProblems = problems.filter((p) => {
-    const q = search.toLowerCase().trim();
-    const matchesSearch =
-      !q ||
-      p.title.toLowerCase().includes(q) ||
-      (p.companies || []).some(c => c.toLowerCase().includes(q)) ||
-      (p.patterns || []).some(pat => pat.toLowerCase().includes(q));
-
-    const matchesTier = tierFilter === 'all' || (p.tier || 'Core') === tierFilter;
-    return matchesSearch && matchesTier;
-  });
-
-  const totalPages = Math.ceil(filteredProblems.length / PAGE_SIZE) || 1;
-  const currentPage = Math.min(page, totalPages);
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const paginatedProblems = filteredProblems.slice(startIndex, startIndex + PAGE_SIZE);
+  const paginatedProblems = problems;
 
   return (
     <AppShell title="Manage Problems" crumb="Content">
@@ -213,7 +215,7 @@ export default function AdminProblems() {
           </table>
 
           {/* Pagination Footer */}
-          {filteredProblems.length > 0 && (
+          {totalCount > 0 && (
             <div style={{
               display: 'flex',
               justify: 'space-between',
@@ -224,13 +226,32 @@ export default function AdminProblems() {
               fontSize: '13px',
               color: 'var(--text-secondary)'
             }}>
-              <div>
-                Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(startIndex + PAGE_SIZE, filteredProblems.length)}</strong> of <strong>{filteredProblems.length}</strong> platform problems
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <div>
+                  Showing <strong>{(page - 1) * pageSize + 1}</strong> to <strong>{Math.min(page * pageSize, totalCount)}</strong> of <strong>{totalCount}</strong> platform problems
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px' }}>Rows:</span>
+                  <select
+                    className="input"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(parseInt(e.target.value) || 10);
+                      setPage(1);
+                    }}
+                    style={{ width: 'auto', padding: '2px 8px', fontSize: '12px', height: '26px' }}
+                  >
+                    <option value="10">10 / page</option>
+                    <option value="15">15 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                  </select>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   className="btn btn-sm btn-secondary"
-                  disabled={currentPage <= 1}
+                  disabled={page <= 1}
                   onClick={() => setPage(prev => Math.max(1, prev - 1))}
                   style={{ gap: '4px' }}
                 >
@@ -238,12 +259,12 @@ export default function AdminProblems() {
                 </button>
                 
                 <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text)', padding: '0 6px' }}>
-                  Page {currentPage} of {totalPages}
+                  Page {page} of {totalPages}
                 </span>
 
                 <button
                   className="btn btn-sm btn-secondary"
-                  disabled={currentPage >= totalPages}
+                  disabled={page >= totalPages}
                   onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
                   style={{ gap: '4px' }}
                 >

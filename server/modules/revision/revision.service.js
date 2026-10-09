@@ -105,22 +105,61 @@ const getRevisionById = async (userId, revisionId) => {
 // GET USER REVISIONS
 // =====================================================
 
-const getUserRevisions = async (userId, status) => {
-
+const getUserRevisions = async (userId, options = {}) => {
+  const status = typeof options === 'string' ? options : options.status;
   const filter = {
     userId
   };
 
-  // Optional filter
-  if (status) {
+  if (status && status !== 'All') {
     filter.status = status;
   }
 
-  const revisions = await Revision
-    .find(filter)
-    .sort({ createdAt: -1 });
+  const page = Math.max(1, parseInt(options.page) || 1);
+  const limit = options.limit !== undefined ? parseInt(options.limit) : (typeof options === 'string' ? 0 : 15);
 
-  return revisions;
+  if (limit <= 0 || options.all === true || options.all === 'true') {
+    const revisions = await Revision.find(filter)
+      .populate("problemId", "title difficulty platform patterns")
+      .sort({ createdAt: -1 })
+      .lean();
+    return {
+      revisions,
+      pagination: {
+        page: 1,
+        limit: revisions.length,
+        total: revisions.length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false
+      }
+    };
+  }
+
+  const skip = (page - 1) * limit;
+  const [revisions, total] = await Promise.all([
+    Revision.find(filter)
+      .populate("problemId", "title difficulty platform patterns")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Revision.countDocuments(filter)
+  ]);
+
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  return {
+    revisions,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1
+    }
+  };
 };
 
 

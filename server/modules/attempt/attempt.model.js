@@ -252,6 +252,16 @@ const attemptSchema = new mongoose.Schema(
             confidenceAdjustment: {
                 type: String,
                 trim: true
+            },
+            coachFeedback: {
+                type: String,
+                trim: true
+            },
+            patternContext: {
+                pattern: { type: String, trim: true },
+                totalPatternSolved: { type: Number, default: 0 },
+                avgHints: { type: Number, default: 0 },
+                isSpike: { type: Boolean, default: false }
             }
         }
     },

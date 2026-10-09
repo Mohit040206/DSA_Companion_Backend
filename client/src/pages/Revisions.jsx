@@ -16,8 +16,8 @@ export default function Revisions() {
     async function loadRevisions() {
       try {
         const [revs, probs] = await Promise.all([
-          revisionAPI.getAll(),
-          problemAPI.getAll()
+          revisionAPI.getAll({ all: true }),
+          problemAPI.getAll({ all: true })
         ]);
         setRevisions(Array.isArray(revs) ? revs : []);
         setProblems(Array.isArray(probs) ? probs : []);
@@ -34,9 +34,11 @@ export default function Revisions() {
 
   const handleStartRevision = async (rev) => {
     try {
+      const pId = rev.problemId?._id || rev.problemId;
+      const pTitle = rev.problemId?.title || 'question';
       await revisionAPI.start(rev.id || rev._id);
-      showToast(`Started revision for ${rev.problemId}`, 'success');
-      navigate(`/problems/${rev.problemId}`);
+      showToast(`Started revision for ${pTitle}`, 'success');
+      navigate(`/problems/${pId}`);
     } catch (err) {
       showToast('Error starting revision', 'error');
     }
@@ -69,6 +71,14 @@ export default function Revisions() {
   const todayList = safeRevisions.filter(r => r.status === 'today');
   const upcomingList = safeRevisions.filter(r => r.status === 'tomorrow' || r.status === 'upcoming');
 
+  const getProblemTitle = (rev) => {
+    if (typeof rev.problemId === 'object' && rev.problemId !== null) {
+      return rev.problemId.title || 'Revision Question';
+    }
+    const found = safeProblems.find(p => p._id === rev.problemId || p.id === rev.problemId);
+    return found?.title || (typeof rev.problemId === 'string' ? rev.problemId : 'Revision Question');
+  };
+
   return (
     <AppShell title="Spaced Repetition Queue" crumb="Prepare">
       <div className="enter">
@@ -86,12 +96,11 @@ export default function Revisions() {
               </h2>
             </div>
             {overdueList.map(rev => {
-              const prob = safeProblems.find(p => p._id === rev.problemId || p.id === rev.problemId) || { title: rev.problemId };
               return (
                 <div key={rev.id || rev._id} className="revision-card">
                   <div className="rev-status-dot overdue" />
                   <div className="rev-body">
-                    <div className="rev-title">{prob.title}</div>
+                    <div className="rev-title">{getProblemTitle(rev)}</div>
                     <div className="rev-reason">
                       <strong>Reason:</strong> {rev.reason} • <strong>Focus:</strong> {rev.focus}
                     </div>
@@ -125,12 +134,11 @@ export default function Revisions() {
             </div>
           ) : (
             todayList.map(rev => {
-              const prob = safeProblems.find(p => p._id === rev.problemId || p.id === rev.problemId) || { title: rev.problemId };
               return (
                 <div key={rev.id || rev._id} className="revision-card">
                   <div className="rev-status-dot" />
                   <div className="rev-body">
-                    <div className="rev-title">{prob.title}</div>
+                    <div className="rev-title">{getProblemTitle(rev)}</div>
                     <div className="rev-reason">
                       <strong>Reason:</strong> {rev.reason} • <strong>Focus:</strong> {rev.focus}
                     </div>
@@ -164,12 +172,11 @@ export default function Revisions() {
             </div>
           ) : (
             upcomingList.map(rev => {
-              const prob = safeProblems.find(p => p._id === rev.problemId || p.id === rev.problemId) || { title: rev.problemId };
               return (
                 <div key={rev.id || rev._id} className="revision-card">
                   <div className="rev-status-dot" style={{ background: 'var(--accent)' }} />
                   <div className="rev-body">
-                    <div className="rev-title">{prob.title}</div>
+                    <div className="rev-title">{getProblemTitle(rev)}</div>
                     <div className="rev-reason">
                       <strong>Focus:</strong> {rev.focus}
                     </div>

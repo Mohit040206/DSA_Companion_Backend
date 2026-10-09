@@ -27,7 +27,9 @@ const getPersonalizedRecommendations = async (userId) => {
   // Fetch all problems & user attempts/revisions
   const allProblems = await Problem.find({});
   const userAttempts = await Attempt.find({ userId });
-  const pendingRevisions = await Revision.find({ userId, status: "Pending" }).populate("problemId");
+  const pendingRevisions = await Revision.find({ userId, status: "Pending" })
+    .populate("problemId")
+    .populate("sourceAttemptId");
 
   const attemptedProblemIds = new Set(
     userAttempts.map((a) => a.problemId.toString())
@@ -164,16 +166,45 @@ const getPersonalizedRecommendations = async (userId) => {
     ) || allProblems[0];
   }
 
-  // 4. Build Daily Plan Checklist (Matching user's dailyGoal, e.g. 2)
+  // 4. Determine Coach Greeting & Tricky Variation (Double Revision) Context
+  const topRevision = pendingRevisions[0];
+  const revProblem = topRevision?.problemId;
+  const revSource = topRevision?.sourceAttemptId;
+  const revFocus = topRevision?.focus || "";
+  const revHints = revSource?.hintsUsed ?? revSource?.hints ?? 0;
+  const revPattern = revProblem?.patterns?.[0] || "General";
+  const revPatternKey = revPattern.toLowerCase().trim();
+  const patternSolvedCount = patternMap[revPatternKey]?.solved || 0;
+
+  const isTwiceRevision = revFocus.toLowerCase().includes("twice") ||
+                          (patternSolvedCount >= 2 && revHints >= 2) ||
+                          topRevision?.reason === "HintsUsed";
+
+  let coachGreeting = "";
+  if (isTwiceRevision && revProblem) {
+    coachGreeting = `Did ${revProblem.title} feel tough? You've smoothly cleared ${patternSolvedCount} ${revPattern} problems before this, but this tricky variation needed extra hints. Let's revise this variation twice so the edge cases stick!`;
+  } else if (targetPattern && targetPattern.solved > 0) {
+    coachGreeting = `Looking sharp! You have strong momentum on ${targetPattern.name} (${targetPattern.solved} solved). Keep the consistency going!`;
+  } else {
+    coachGreeting = `Welcome back! Let's build solid algorithmic intuition step by step today.`;
+  }
+
+  // 5. Build Daily Plan Checklist (Matching user's dailyGoal, e.g. 2)
   const dailyGoalCount = learningProfile.dailyGoal || 2;
   const dailyPlan = [];
 
   if (pendingRevisions.length > 0) {
     dailyPlan.push({
       type: "revision",
-      title: `Complete Revision: ${pendingRevisions[0].problemId?.title}`,
+      title: isTwiceRevision
+        ? `Revise (2x Recommended): ${pendingRevisions[0].problemId?.title}`
+        : `Complete Revision: ${pendingRevisions[0].problemId?.title}`,
       problemId: pendingRevisions[0].problemId?._id,
-      completed: false
+      completed: false,
+      coachReason: isTwiceRevision
+        ? `Tricky variation after ${patternSolvedCount} smooth solves. Revising twice ensures edge cases stick!`
+        : (topRevision.focus || "Solidify core pattern approach"),
+      isDoubleRevision: isTwiceRevision
     });
   }
 
@@ -184,7 +215,8 @@ const getPersonalizedRecommendations = async (userId) => {
       problemId: recommendedProblem._id,
       difficulty: recommendedProblem.difficulty,
       pattern: targetPattern?.name || "General",
-      completed: false
+      completed: false,
+      coachReason: `Recommended for ${targetPattern?.name || "General"} progression (${targetPattern?.solved || 0} solved so far).`
     });
   }
 
@@ -204,12 +236,13 @@ const getPersonalizedRecommendations = async (userId) => {
       problemId: extraProb._id,
       difficulty: extraProb.difficulty,
       pattern: extraProb.patterns?.[0] || "General",
-      completed: false
+      completed: false,
+      coachReason: "Extra practice towards your daily goal."
     });
     extraIdx++;
   }
 
-  // 5. Get Factual Memory Context
+  // 6. Get Factual Memory Context
   const memoryTimeline = await memoryService.getFactualMemoryTimeline(userId);
 
   return {
@@ -219,7 +252,9 @@ const getPersonalizedRecommendations = async (userId) => {
     recommendedProblem,
     dailyPlan,
     patternExposure,
-    memoryHighlights: memoryTimeline.timeline.slice(0, 3)
+    memoryHighlights: memoryTimeline.timeline.slice(0, 3),
+    coachGreeting,
+    isDoubleRevisionNeeded: isTwiceRevision
   };
 };
 

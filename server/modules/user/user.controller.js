@@ -2,12 +2,14 @@ const userService = require("./user.service");
 
 const getAllUsers = async (req, res) => {
     try {
-        const users = await userService.getAllUsers(req.query);
+        const result = await userService.getAllUsers(req.query);
         return res.status(200).json({
             success: true,
             message: "Users fetched successfully",
             code: 200,
-            data: users
+            data: result.users,
+            users: result.users,
+            pagination: result.pagination
         });
     } catch (err) {
         const statusCode = err.statusCode || 500;

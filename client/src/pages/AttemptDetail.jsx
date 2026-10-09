@@ -19,10 +19,14 @@ export default function AttemptDetail() {
       const att = await attemptAPI.getById(id);
       if (att) {
         setAttempt(att);
-        try {
-          const prob = await problemAPI.getById(att.problemId);
-          setProblem(prob);
-        } catch (_) { /* ignore problem fetch error */ }
+        if (typeof att.problemId === 'object' && att.problemId !== null) {
+          setProblem(att.problemId);
+        } else if (att.problemId) {
+          try {
+            const prob = await problemAPI.getById(att.problemId);
+            setProblem(prob);
+          } catch (_) { /* ignore problem fetch error */ }
+        }
       }
     } catch (err) {
       setAttempt(null);
@@ -68,7 +72,7 @@ export default function AttemptDetail() {
           <Link to="/attempts" className="breadcrumb-link">
             <ChevronLeft size={16} /> Back to All Attempt Logs
           </Link>
-          <h1>{problem?.title || attempt.problemId}</h1>
+          <h1>{problem?.title || (typeof attempt.problemId === 'object' ? attempt.problemId?.title : attempt.problemId) || 'Problem'}</h1>
           <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
             Logged on {attempt.date || (attempt.createdAt ? new Date(attempt.createdAt).toLocaleDateString() : 'Recent')}
           </div>
@@ -147,7 +151,7 @@ export default function AttemptDetail() {
         )}
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-          <Link to={`/problems/${attempt.problemId}`} className="btn btn-primary">
+          <Link to={`/problems/${problem?._id || (typeof attempt.problemId === 'object' ? attempt.problemId?._id : attempt.problemId)}`} className="btn btn-primary">
             Try Again <ArrowRight size={15} />
           </Link>
           <Link to="/revisions" className="btn btn-secondary">

@@ -134,6 +134,45 @@ export default function AIEvaluationCard({ evaluation, attempt, onRetry, onReeva
 
       {expanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Big Brother Coach Note */}
+          {evaluation.coachFeedback && (
+            <div
+              style={{
+                padding: '12px 14px',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+                borderRadius: 'var(--r-sm)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
+                  <Brain size={16} /> Big Brother Coach Insights
+                </div>
+                {evaluation.patternContext?.isSpike && (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: 'rgba(245, 158, 11, 0.15)',
+                      color: '#F59E0B',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      fontWeight: 700
+                    }}
+                  >
+                    Tricky Variation
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '13px', lineHeight: '1.55', color: 'var(--text)', fontWeight: 500 }}>
+                {evaluation.coachFeedback}
+              </div>
+            </div>
+          )}
+
           {/* AI Derived Complexity & Approach */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
             <div style={{ padding: '10px 12px', background: 'var(--surface)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
@@ -223,7 +262,7 @@ export default function AIEvaluationCard({ evaluation, attempt, onRetry, onReeva
                 }}
                 style={{ flexShrink: 0, gap: '6px', background: 'linear-gradient(135deg, #EC4899, #8B5CF6)' }}
               >
-                <RotateCcw size={13} /> Try Again
+                <RotateCcw size={13} /> {evaluation.retryFocus?.toLowerCase().includes('twice') ? 'Revise 2x' : 'Try Again'}
               </button>
             </div>
           )}

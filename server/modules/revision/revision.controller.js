@@ -136,37 +136,24 @@ const getRevisionById = async (req, res) => {
 // =====================================================
 
 const getUserRevisions = async (req, res) => {
-
   try {
-
     const userId = req.userId;
+    const options = {
+      status: req.query.status,
+      page: req.query.page,
+      limit: req.query.limit,
+      all: req.query.all
+    };
 
-    const { status } = req.query;
-
-
-    const revisions =
-      await revisionService.getUserRevisions(
-        userId,
-        status
-      );
-
+    const result = await revisionService.getUserRevisions(userId, options);
 
     return res.status(200).json({
-
       success: true,
-
       message: "Revisions fetched successfully.",
-
       code: 200,
-
-      data: {
-
-        total: revisions.length,
-
-        revisions
-
-      }
-
+      data: result.revisions,
+      revisions: result.revisions,
+      pagination: result.pagination
     });
 
 
