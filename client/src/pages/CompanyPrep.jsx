@@ -21,7 +21,8 @@ import {
   Sliders,
   Clock,
   Layers,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 
 const COMMON_COMPANIES = ['Amazon', 'Google', 'Meta', 'Microsoft', 'Uber', 'Razorpay', 'Atlassian', 'Flipkart'];
@@ -421,93 +422,106 @@ export default function CompanyPrep() {
             </div>
           </>
         )}
-
-        {/* Configuration Modal */}
-        {showConfigModal && (
-          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
-            <div className="card enter" style={{ width: '100%', maxWidth: 500, padding: 28, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
-              <h2 style={{ fontSize: 20, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Building2 size={22} className="text-accent" /> Configure Preparation Target
-              </h2>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                Specify target company, role, and interview date. Web search queries will fetch recent interview reports.
-              </p>
-
-              <form onSubmit={handleGeneratePlan}>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Target Company</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    placeholder="e.g. Amazon, Google, Meta, Razorpay"
-                    required
-                  />
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                    {COMMON_COMPANIES.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        className={`badge ${company === c ? 'badge-accent' : 'badge-neutral'}`}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setCompany(c)}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Target Role</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    placeholder="e.g. SDE-1, Senior Backend Engineer"
-                  />
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                    {COMMON_ROLES.map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        className={`badge ${role === r ? 'badge-accent' : 'badge-neutral'}`}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setRole(r)}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Expected Interview Date (Optional)</label>
-                  <input
-                    type="date"
-                    className="input"
-                    value={interviewDate}
-                    onChange={(e) => setInterviewDate(e.target.value)}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                  {plan && (
-                    <button type="button" className="btn btn-secondary" onClick={() => setShowConfigModal(false)}>
-                      Cancel
-                    </button>
-                  )}
-                  <button type="submit" className="btn btn-primary" disabled={submitting}>
-                    {submitting ? 'Searching Web & Generating...' : 'Generate Personalized Plan'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Configuration Modal */}
+      {showConfigModal && (
+        <div
+          className="modal-overlay open show"
+          style={{ zIndex: 9999 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowConfigModal(false);
+          }}
+        >
+          <div className="modal-card" style={{ maxWidth: 520, padding: '28px 32px', position: 'relative' }}>
+            <button
+              type="button"
+              className="icon-btn"
+              style={{ position: 'absolute', top: 16, right: 16 }}
+              onClick={() => setShowConfigModal(false)}
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+            <h2 style={{ fontSize: 20, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Building2 size={22} className="text-accent" /> Configure Preparation Target
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+              Specify target company, role, and interview date. Web search queries will fetch recent interview reports.
+            </p>
+
+            <form onSubmit={handleGeneratePlan}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Target Company</label>
+                <input
+                  type="text"
+                  className="input"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="e.g. Amazon, Google, Meta, Razorpay"
+                  required
+                />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  {COMMON_COMPANIES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`badge ${company === c ? 'badge-accent' : 'badge-neutral'}`}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setCompany(c)}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Target Role</label>
+                <input
+                  type="text"
+                  className="input"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="e.g. SDE-1, Senior Backend Engineer"
+                />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  {COMMON_ROLES.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      className={`badge ${role === r ? 'badge-accent' : 'badge-neutral'}`}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setRole(r)}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Expected Interview Date (Optional)</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={interviewDate}
+                  onChange={(e) => setInterviewDate(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowConfigModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Searching Web & Generating...' : 'Generate Personalized Plan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

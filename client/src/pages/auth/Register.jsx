@@ -6,12 +6,12 @@ import AuthBackground from '../../components/auth/AuthBackground';
 
 export default function Register() {
   const [formData, setFormData] = useState({
-    name: 'Mohit Gupta',
-    username: 'mohit04',
-    email: 'mohit@example.com',
-    password: 'password123',
-    role: 'Software Engineer',
-    company: 'Razorpay'
+    name: '',
+    username: '',
+    email: '',
+    password: '',
+    role: '',
+    company: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,8 +23,8 @@ export default function Register() {
     const { name, value } = e.target;
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
-      // Auto-generate username from name if username matches default
-      if (name === 'name' && (prev.username === 'mohit04' || prev.username === '')) {
+      // Auto-suggest username from name if username field hasn't been manually customized
+      if (name === 'name' && (!prev.username || prev.username === prev.name?.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
         updated.username = value.toLowerCase().replace(/[^a-z0-9]/g, '');
       }
       return updated;
@@ -89,7 +89,7 @@ export default function Register() {
                 className="input"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Mohit Gupta"
+                placeholder="e.g. Alex Morgan"
                 required
               />
             </div>
@@ -101,7 +101,7 @@ export default function Register() {
                 className="input"
                 value={formData.username}
                 onChange={handleChange}
-                placeholder="mohit04"
+                placeholder="e.g. alex01"
                 required
               />
             </div>
@@ -115,7 +115,7 @@ export default function Register() {
               className="input"
               value={formData.email}
               onChange={handleChange}
-              placeholder="mohit@example.com"
+              placeholder="you@company.com"
               required
             />
           </div>
@@ -129,7 +129,7 @@ export default function Register() {
                 className="input"
                 value={formData.role}
                 onChange={handleChange}
-                placeholder="Software Engineer"
+                placeholder="e.g. Software Engineer"
               />
             </div>
             <div className="field">
@@ -140,7 +140,7 @@ export default function Register() {
                 className="input"
                 value={formData.company}
                 onChange={handleChange}
-                placeholder="Razorpay"
+                placeholder="e.g. Google, Amazon, Startup"
               />
             </div>
           </div>

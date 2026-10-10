@@ -9,11 +9,18 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     async function loadUser() {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('dsa_token') : null;
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
       try {
         const profile = await authAPI.getProfile();
         setUser(profile || null);
       } catch (err) {
-        // Cookie missing, invalid, or cleared — log out user
+        // Token invalid, expired, or cookie cleared — purge token and reset state
+        try { localStorage.removeItem('dsa_token'); } catch (_) {}
         setUser(null);
       } finally {
         setLoading(false);
@@ -46,7 +53,8 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await authAPI.logout();
+    try { await authAPI.logout(); } catch (_) {}
+    try { localStorage.removeItem('dsa_token'); } catch (_) {}
     setUser(null);
   };
 

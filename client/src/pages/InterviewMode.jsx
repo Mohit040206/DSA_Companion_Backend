@@ -276,13 +276,13 @@ export default function InterviewMode() {
                 <span className="badge badge-mono">Est. Time: {problem?.estimatedTime || 30} min</span>
               </div>
 
-              <p style={{ fontSize: '13.5px', opacity: 0.85, maxWidth: '640px', margin: 0 }}>
+              <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', maxWidth: '640px', margin: 0 }}>
                 Simulate realistic technical interview conditions. You have <strong>45 minutes</strong> to read the question, design an algorithm, write code, and optimize time/space complexity.
               </p>
 
               <div className="countdown-row" style={{ marginTop: 16 }}>
                 <div className="countdown-item">
-                  <div className="num" style={{ color: timeLeft < 300 ? 'var(--danger)' : 'var(--text)' }}>
+                  <div className="num" style={{ color: timeLeft < 300 ? 'var(--danger)' : undefined }}>
                     {formatTime(timeLeft)}
                   </div>
                   <div className="lbl">TIME REMAINING</div>

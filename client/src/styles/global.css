@@ -85,11 +85,19 @@ img,svg{ display:block; max-width:100%; }
   color:#fff;font-family:var(--font-display);font-weight:800;font-size:13px;
 }
 .sidebar-brand .name{ font-family:var(--font-display); font-weight:700; font-size:15px; }
+.sidebar-collapsed .sidebar-brand{
+  justify-content: center;
+  padding: 20px 0 16px;
+}
 .sidebar-collapsed .sidebar-brand .name,
 .sidebar-collapsed .nav-item .label,
 .sidebar-collapsed .sidebar-user .who,
 .sidebar-collapsed .sidebar-user-chevron,
-.sidebar-collapsed .sidebar-section-label{ display:none; }
+.sidebar-collapsed .sidebar-section-label{ display:none !important; }
+.sidebar-collapsed .nav-item{
+  justify-content: center;
+  padding: 10px 0;
+}
 
 .sidebar-nav{ flex:1; padding:8px 12px; overflow-y:auto; }
 .sidebar-section-label{

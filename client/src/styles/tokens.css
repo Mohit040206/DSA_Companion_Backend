@@ -7,6 +7,7 @@
   /* ---- Light mode (default) ---- */
   --bg:            #F4F6F9;
   --surface:       #FFFFFF;
+  --surface-1:     #F8FAFC;
   --surface-translucent: rgba(255, 255, 255, 0.88);
   --surface-card:        #FFFFFF;
   --surface-2:     #F1F3F6;
@@ -69,6 +70,7 @@
 [data-theme="dark"]{
   --bg:            #0B0F14;
   --surface:       #111720;
+  --surface-1:     #151C26;
   --surface-translucent: rgba(17, 23, 32, 0.82);
   --surface-card:        rgba(17, 23, 32, 0.88);
   --surface-2:     #151C26;

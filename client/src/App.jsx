@@ -9,6 +9,7 @@ import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 
+import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import Problems from './pages/Problems';
 import ProblemDetail from './pages/ProblemDetail';
@@ -37,13 +38,123 @@ import './styles/global.css';
 import './styles/components.css';
 import './styles/pages.css';
 
+function RequireAuth({ children }) {
+  const { user, loading } = useAuth();
+  const token = typeof window !== 'undefined' ? localStorage.getItem('dsa_token') : null;
+
+  // Strict check 1: If there is no token in localStorage, immediately redirect to login
+  if (!token) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  // Strict check 2: If token is present but validating with backend
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg, #0B0F14)'
+      }}>
+        <div className="pulse-dot" />
+      </div>
+    );
+  }
+
+  // Strict check 3: If backend validation failed or token is invalid
+  if (!user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  return children;
+}
+
 function RequireAdmin({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return null;
-  if (!user || user.role !== 'admin') {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('dsa_token') : null;
+
+  if (!token) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg, #0B0F14)'
+      }}>
+        <div className="pulse-dot" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  if (user.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
+
   return children;
+}
+
+function PublicOnlyRoute({ children }) {
+  const { user, loading } = useAuth();
+  const token = typeof window !== 'undefined' ? localStorage.getItem('dsa_token') : null;
+
+  if (loading && token) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg, #0B0F14)'
+      }}>
+        <div className="pulse-dot" />
+      </div>
+    );
+  }
+
+  if (token && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
+function RootRoute() {
+  const { user, loading } = useAuth();
+  const token = typeof window !== 'undefined' ? localStorage.getItem('dsa_token') : null;
+
+  if (!token) {
+    return <LandingPage />;
+  }
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg, #0B0F14)'
+      }}>
+        <div className="pulse-dot" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  return <Navigate to="/dashboard" replace />;
 }
 
 export default function App() {
@@ -53,30 +164,31 @@ export default function App() {
         <AuthProvider>
           <ToastProvider>
             <Routes>
-              {/* Root redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              {/* Root route: Landing for visitors, Dashboard for logged-in users */}
+              <Route path="/" element={<RootRoute />} />
+              <Route path="/landing" element={<LandingPage />} />
 
               {/* Auth Routes */}
-              <Route path="/auth/login" element={<Login />} />
-              <Route path="/auth/register" element={<Register />} />
+              <Route path="/auth/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+              <Route path="/auth/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
               <Route path="/auth/forgot-password" element={<ForgotPassword />} />
               <Route path="/auth/reset-password" element={<ResetPassword />} />
 
-              {/* Learner App Routes */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/company-prep" element={<CompanyPrep />} />
-              <Route path="/problems" element={<Problems />} />
-              <Route path="/problems/:id" element={<ProblemDetail />} />
-              <Route path="/patterns" element={<Patterns />} />
-              <Route path="/patterns/:id" element={<PatternDetail />} />
-              <Route path="/interview-mode" element={<InterviewMode />} />
-              <Route path="/attempts" element={<AttemptHistory />} />
-              <Route path="/attempts/:id" element={<AttemptDetail />} />
-              <Route path="/import-records" element={<ImportRecords />} />
-              <Route path="/revisions" element={<Revisions />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
+              {/* Learner App Routes — Strictly Protected */}
+              <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+              <Route path="/company-prep" element={<RequireAuth><CompanyPrep /></RequireAuth>} />
+              <Route path="/problems" element={<RequireAuth><Problems /></RequireAuth>} />
+              <Route path="/problems/:id" element={<RequireAuth><ProblemDetail /></RequireAuth>} />
+              <Route path="/patterns" element={<RequireAuth><Patterns /></RequireAuth>} />
+              <Route path="/patterns/:id" element={<RequireAuth><PatternDetail /></RequireAuth>} />
+              <Route path="/interview-mode" element={<RequireAuth><InterviewMode /></RequireAuth>} />
+              <Route path="/attempts" element={<RequireAuth><AttemptHistory /></RequireAuth>} />
+              <Route path="/attempts/:id" element={<RequireAuth><AttemptDetail /></RequireAuth>} />
+              <Route path="/import-records" element={<RequireAuth><ImportRecords /></RequireAuth>} />
+              <Route path="/revisions" element={<RequireAuth><Revisions /></RequireAuth>} />
+              <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
+              <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+              <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
 
               {/* Admin Portal Routes */}
               <Route path="/admin" element={<RequireAdmin><Navigate to="/admin/dashboard" replace /></RequireAdmin>} />

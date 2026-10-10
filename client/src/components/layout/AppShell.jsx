@@ -167,20 +167,21 @@ export default function AppShell({ children, title = 'Dashboard', crumb = '', op
               objectFit: 'contain'
             }}
           />
-          <div
-            className="name"
-            style={{
-              fontWeight: 800,
-              fontSize: 21,
-              letterSpacing: '-0.5px',
-              background: 'linear-gradient(135deg, #818CF8 0%, #C084FC 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              display: 'inline-block'
-            }}
-          >
-            Ancora
-          </div>
+          {!collapsed && (
+            <div
+              className="name"
+              style={{
+                fontWeight: 800,
+                fontSize: 21,
+                letterSpacing: '-0.5px',
+                background: 'linear-gradient(135deg, #818CF8 0%, #C084FC 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              Ancora
+            </div>
+          )}
         </div>
 
         <nav className="sidebar-nav" ref={sidebarNavRef} onScroll={handleSidebarScroll}>
